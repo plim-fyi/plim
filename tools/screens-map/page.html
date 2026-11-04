@@ -1,0 +1,345 @@
+<title>Plim Screens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&display=swap" />
+<style>
+/* React Flow's own styles (vendor/xyflow-react-*.css, MIT), inlined by build.mjs; first, so the page's own win. */
+/*XYFLOW_CSS*/
+
+/* Layout: a full-height canvas of flow lanes (React Flow), a slim bar on top, and the screen you
+   pick in a sheet on the right (at the bottom on a phone). Plim's own palette and type. */
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --text: #1c1b19;
+  --muted: #6b6860;
+  --border: #dedad2;
+  --accent: #3f5bd8;
+  --accent-text: #ffffff;
+  --ok: #2f7d4f;
+  --warn: #a8660b;
+  --lane: color-mix(in srgb, var(--text) 3%, transparent);
+  --edge: #b4b0a6;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 6px 18px rgb(0 0 0 / 0.07);
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --brand: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141414; --surface: #1d1d1c; --text: #ecebe7; --muted: #9b988f; --border: #33322f;
+    --accent: #7d93ff; --accent-text: #0e1020; --ok: #6fcf97; --warn: #f2b24b; --edge: #57544d;
+    --shadow: 0 6px 18px rgb(0 0 0 / 0.5); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141414; --surface: #1d1d1c; --text: #ecebe7; --muted: #9b988f; --border: #33322f;
+  --accent: #7d93ff; --accent-text: #0e1020; --ok: #6fcf97; --warn: #f2b24b; --edge: #57544d;
+  --shadow: 0 6px 18px rgb(0 0 0 / 0.5); color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
+#app { height: 100%; display: flex; flex-direction: column; }
+
+/* ---- the bar ---- */
+.bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  padding-block: 10px; padding-inline: 16px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.brand { font: 600 17px/1 var(--brand); letter-spacing: 0.12em; }
+.brand small { font: 500 12px/1 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-left: 8px; }
+.run { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.run code { font-family: var(--mono); font-size: 11.5px; }
+.grow { flex: 1; }
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.segmented button {
+  font: inherit; font-size: 13px; padding: 5px 12px; border: 0; background: transparent; color: var(--text); cursor: pointer;
+}
+.segmented button + button { border-left: 1px solid var(--border); }
+.segmented button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+select {
+  font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); max-width: 100%;
+}
+.counts { display: inline-flex; gap: 6px; font-size: 12px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.pill.look { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+.pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+button:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- the canvas ---- */
+.main { flex: 1; min-height: 0; display: flex; position: relative; }
+.canvas { flex: 1; min-width: 0; }
+.react-flow { --xy-background-color: var(--bg); --xy-edge-stroke-default: var(--edge); --xy-edge-label-background-color-default: var(--bg); --xy-edge-label-color-default: var(--muted); }
+.react-flow__edge-textbg { fill: var(--bg); }
+.react-flow__edge-text { font-size: 11px; fill: var(--muted); }
+.react-flow__controls button { background: var(--surface); color: var(--text); border-color: var(--border); }
+.react-flow__controls button svg { fill: currentColor; }
+.react-flow__minimap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.react-flow__attribution { display: none; }
+
+.lane-label { width: 190px; padding: 10px 0; }
+.lane-label .num { font: 600 11px/1 var(--mono); color: var(--muted); letter-spacing: 0.06em; }
+.lane-label h2 { margin: 6px 0 4px; font-size: 16px; line-height: 1.25; text-wrap: balance; }
+.lane-label p { margin: 0; font-size: 12px; color: var(--muted); }
+.lane-band { border-radius: 16px; background: var(--lane); pointer-events: none; }
+
+.screen {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden; cursor: pointer;
+}
+.screen.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+.screen img { display: block; width: 100%; height: auto; background: var(--lane); }
+.screen .cap { padding: 7px 9px 8px; display: grid; gap: 2px; }
+.screen .title { font-size: 12.5px; font-weight: 600; line-height: 1.25; }
+.screen .device { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.screen .badge { position: absolute; top: 6px; right: 6px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); }
+.screen .badge.look { color: var(--warn); }
+.screen .badge.ok { color: var(--ok); }
+.react-flow__handle { opacity: 0; pointer-events: none; }
+.step-label {
+  position: absolute; max-width: 128px; padding: 3px 7px; border-radius: 6px;
+  background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+  font-size: 11px; line-height: 1.3; text-align: center; text-wrap: balance; pointer-events: none;
+}
+
+/* ---- the sheet ---- */
+.sheet {
+  width: min(560px, 46vw); border-left: 1px solid var(--border); background: var(--surface);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.sheet header { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px 10px; }
+.sheet h3 { margin: 0; font-size: 16px; }
+.sheet .where { margin: 3px 0 0; font-size: 12px; color: var(--muted); }
+.sheet .where code { font-family: var(--mono); font-size: 11.5px; }
+.sheet .body { flex: 1; min-height: 0; overflow: auto; padding: 0 16px 16px; display: grid; gap: 12px; align-content: start; }
+.sheet .shot { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--lane); }
+.sheet .shot img { display: block; width: 100%; height: auto; }
+.sheet .shot.ios, .sheet .shot.safari { max-width: 340px; justify-self: center; }
+.sheet .caption { margin: 0; font-size: 14px; line-height: 1.5; max-width: 65ch; }
+.sheet .about { font-size: 13px; color: var(--muted); }
+.sheet .about summary { cursor: pointer; color: var(--text); }
+.sheet .about p { margin: 6px 0 0; line-height: 1.55; max-width: 70ch; }
+.sheet .note { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; }
+.sheet .note.look { border-color: color-mix(in srgb, var(--warn) 50%, var(--border)); }
+.sheet .note.ok { border-color: color-mix(in srgb, var(--ok) 50%, var(--border)); }
+.sheet .nav { display: flex; gap: 8px; align-items: center; }
+.btn {
+  font: inherit; font-size: 13px; padding: 5px 11px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); cursor: pointer; text-decoration: none;
+}
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.close { margin-left: auto; padding: 4px 9px; }
+.hint { color: var(--muted); font-size: 12px; }
+
+.empty { margin: auto; max-width: 30rem; padding: 24px; text-align: center; color: var(--muted); }
+.empty h2 { color: var(--text); font-size: 18px; margin: 0 0 8px; }
+.empty code { font-family: var(--mono); font-size: 12.5px; }
+
+@media (max-width: 720px) {
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; width: auto; max-height: 72%;
+    border-left: 0; border-top: 1px solid var(--border); border-radius: 14px 14px 0 0; box-shadow: var(--shadow);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .lane-label { width: 150px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="app"><div class="empty"><h2>Loading the screens…</h2></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script>
+  // React Flow's UMD build takes the JSX runtime as a global; React 18's UMD has none, so: the same, on createElement.
+  window.jsxRuntime = {
+    jsx: (type, props, key) => React.createElement(type, key === undefined ? props : { ...props, key }),
+    jsxs: (type, props, key) => React.createElement(type, key === undefined ? props : { ...props, key }),
+    Fragment: React.Fragment,
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@xyflow/react@12.12.0/dist/umd/index.js"></script>
+<script>
+(() => {
+  const { createElement: h, useState, useEffect, useMemo, useCallback } = React;
+  const RF = window.ReactFlow;
+
+  // Sizes on the canvas: a desktop screenshot is about 3:2 (framed as a window), an iPhone one about 9:19.5.
+  const CARD = { desktop: { w: 260, img: 176 }, ios: { w: 132, img: 286 }, safari: { w: 132, img: 287 } };
+  const CAPTION = 46;
+  const LABEL = 220; // (the lane's title, left of its screens)
+  const GAP = { x: 150, y: 56 }; // (room between two screens for the label of the arrow)
+
+  const step = (name) => Number(name.match(/^\d\d-[a-z-]+?-(\d+)-/)?.[1] ?? 0);
+  const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+
+  /** The lanes, nodes and edges for one profile: each flow a row, its screens in step order. */
+  function layout(data, profile, reviews) {
+    const card = CARD[profile] ?? CARD.desktop;
+    // (By number: an object lists "10"–"18" before "01"–"09", which aren't numbers to it. iOS Safari's keep their order.)
+    const byNumber = ([a], [b]) => (/^\d+$/.test(a) && /^\d+$/.test(b) ? Number(a) - Number(b) : /^\d+$/.test(b) - /^\d+$/.test(a));
+    const lanes = Object.entries(data.flows).sort(byNumber)
+      .map(([flow, title]) => ({ flow, title, screens: data.screens.filter((s) => s.profile === profile && s.flow === flow).sort((a, b) => step(a.name) - step(b.name)) }))
+      .filter((l) => l.screens.length);
+    const nodes = [];
+    const edges = [];
+    let y = 0;
+    for (const lane of lanes) {
+      const height = card.img + CAPTION;
+      const width = LABEL + lane.screens.length * (card.w + GAP.x);
+      nodes.push({ id: `band-${lane.flow}`, type: 'band', position: { x: -24, y: y - 20 }, data: {}, style: { width: width + 24, height: height + 40 }, selectable: false, draggable: false, zIndex: -1 });
+      const devices = new Set(lane.screens.map((s) => s.device).filter(Boolean));
+      nodes.push({ id: `lane-${lane.flow}`, type: 'lane', position: { x: 0, y }, data: { ...lane, devices: [...devices] }, selectable: false, draggable: false });
+      lane.screens.forEach((s, i) => {
+        nodes.push({ id: s.id, type: 'screen', position: { x: LABEL + i * (card.w + GAP.x), y }, data: { screen: s, card, review: reviews[s.id] }, draggable: false });
+        const prev = lane.screens[i - 1];
+        if (prev) {
+          // What you do to get here, and on which device when it isn't the one before.
+          const moved = s.device && s.device !== prev.device ? `on ${s.device}` : null;
+          const label = [s.via, moved].filter(Boolean).join(' · ') || undefined;
+          edges.push({ id: `${prev.id}->${s.id}`, source: prev.id, target: s.id, data: { label }, type: 'step', markerEnd: { type: 'arrowclosed', width: 16, height: 16 } });
+        }
+      });
+      lane.top = y;
+      y += height + GAP.y + 40;
+    }
+    return { lanes, nodes, edges };
+  }
+
+  const Band = () => h('div', { className: 'lane-band', style: { width: '100%', height: '100%' } });
+  const Lane = ({ data }) => h('div', { className: 'lane-label' },
+    h('div', { className: 'num' }, `FLOW ${data.flow}`),
+    h('h2', null, data.title),
+    h('p', null, `${data.screens.length} screen${data.screens.length === 1 ? '' : 's'}`, data.devices.length > 1 ? ` · ${data.devices.length} devices` : ''));
+  const Screen = ({ data, selected }) => {
+    const { screen: s, card, review } = data;
+    return h('div', { className: `screen${selected ? ' selected' : ''}`, style: { width: card.w, position: 'relative' }, title: s.caption ?? s.title },
+      h(RF.Handle, { type: 'target', position: RF.Position.Left }),
+      h('img', { src: s.file, alt: `${s.title} (${s.device ?? ''})`, loading: 'lazy', width: card.w, height: card.img, style: { height: card.img, objectFit: 'cover', objectPosition: 'top' } }),
+      h('div', { className: 'cap' }, h('span', { className: 'title' }, s.title), h('span', { className: 'device' }, s.device ?? '')),
+      review && h('span', { className: `badge ${review.status}` }, review.status === 'ok' ? 'Looks good' : 'Needs a look'),
+      h(RF.Handle, { type: 'source', position: RF.Position.Right }));
+  };
+  const nodeTypes = { band: Band, lane: Lane, screen: Screen };
+
+  /** An arrow, its label in HTML (it wraps, in the gap between two screens). */
+  const Step = ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, data }) => {
+    const [path, x, y] = RF.getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+    return h(React.Fragment, null,
+      h(RF.BaseEdge, { id, path, markerEnd }),
+      data?.label && h(RF.EdgeLabelRenderer, null,
+        h('div', { className: 'step-label', style: { transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` } }, data.label)));
+  };
+  const edgeTypes = { step: Step };
+
+  function Sheet({ screen, lane, about, reviews, onPick, onClose }) {
+    const i = lane.screens.findIndex((s) => s.id === screen.id);
+    const [prev, next] = [lane.screens[i - 1], lane.screens[i + 1]];
+    const review = reviews[screen.id];
+    useEffect(() => {
+      const key = (e) => {
+        if (e.target.closest?.('input, select, textarea')) return;
+        if (e.key === 'ArrowLeft' && prev) onPick(prev.id);
+        if (e.key === 'ArrowRight' && next) onPick(next.id);
+        if (e.key === 'Escape') onClose();
+      };
+      addEventListener('keydown', key);
+      return () => removeEventListener('keydown', key);
+    }, [screen.id]);
+    return h('aside', { className: 'sheet', 'aria-label': 'The screen picked' },
+      h('header', null,
+        h('div', null,
+          h('h3', null, screen.title),
+          h('p', { className: 'where' }, `${lane.title} · step ${i + 1} of ${lane.screens.length}`, screen.device ? ` · ${screen.device}` : '', h('br'), h('code', null, screen.name))),
+        h('button', { className: 'btn close', onClick: onClose, 'aria-label': 'Close' }, '✕')),
+      h('div', { className: 'body' },
+        screen.caption && h('p', { className: 'caption' }, screen.caption),
+        review && h('div', { className: `note ${review.status}` }, h('strong', null, review.status === 'ok' ? 'Looks good. ' : 'Needs a look. '), review.note ?? ''),
+        h('div', { className: `shot ${screen.profile}` }, h('img', { src: screen.file, alt: screen.title })),
+        screen.via && h('p', { className: 'hint' }, `Reached by: ${screen.via}`),
+        h('div', { className: 'nav' },
+          h('button', { className: 'btn', disabled: !prev, onClick: () => prev && onPick(prev.id) }, '← ', prev ? prev.title : 'Start'),
+          h('button', { className: 'btn', disabled: !next, onClick: () => next && onPick(next.id) }, next ? next.title : 'End', ' →'),
+          h('span', { className: 'grow' }),
+          h('a', { className: 'btn', href: screen.file, target: '_blank', rel: 'noopener' }, 'Full size')),
+        about && h('details', { className: 'about' }, h('summary', null, `About ${lane.title}`), h('p', null, about)),
+        h('p', { className: 'hint' }, '← and → go through the flow; Esc closes.')));
+  }
+
+  // (The background's dots take their color as an SVG attribute, where var(--…) doesn't work: the value, then.)
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  function ScreensMap({ data, reviews }) {
+    const profiles = Object.keys(data.profiles).filter((p) => data.screens.some((s) => s.profile === p));
+    const [profile, setProfile] = useState(() => (profiles.includes(store.get('screens-profile')) ? store.get('screens-profile') : profiles[0]));
+    const [picked, setPicked] = useState(null);
+    const flow = RF.useReactFlow();
+    const { lanes, nodes, edges } = useMemo(() => layout(data, profile, reviews), [data, profile, reviews]);
+    const shown = useMemo(() => nodes.map((n) => (n.type === 'screen' ? { ...n, selected: n.id === picked } : n)), [nodes, picked]);
+    const pickedScreen = data.screens.find((s) => s.id === picked);
+    const pickedLane = pickedScreen && lanes.find((l) => l.flow === pickedScreen.flow);
+
+    const pick = useCallback((id) => {
+      setPicked(id);
+      const node = nodes.find((n) => n.id === id);
+      if (node) flow.setCenter(node.position.x + 160, node.position.y + 140, { zoom: Math.max(flow.getZoom(), 0.7), duration: 300 });
+    }, [nodes, flow]);
+    const jump = (key) => {
+      const lane = lanes.find((l) => l.flow === key);
+      if (lane) flow.fitView({ nodes: [{ id: `lane-${key}` }, ...lane.screens.map((s) => ({ id: s.id }))], duration: 300, padding: 0.15 });
+    };
+    // At first, the first few flows at a size to read (all 18 at once are thumbnails of thumbnails).
+    useEffect(() => {
+      const first = lanes.slice(0, 3).flatMap((l) => [{ id: `lane-${l.flow}` }, ...l.screens.map((s) => ({ id: s.id }))]);
+      setTimeout(() => flow.fitView({ nodes: first, duration: 0, padding: 0.08 }), 60); // (once the cards are measured)
+    }, [profile]);
+
+    const counts = Object.values(reviews).reduce((c, r) => ({ ...c, [r.status]: (c[r.status] ?? 0) + 1 }), {});
+    const taken = new Date(data.taken);
+    return h(React.Fragment, null,
+      h('div', { className: 'bar' },
+        h('span', { className: 'brand' }, 'PLIM', h('small', null, 'Screens')),
+        h('span', { className: 'run' }, `${data.screens.filter((s) => s.profile === profile).length} screens in ${lanes.length} flows · taken ${taken.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} at `, h('code', null, data.commit)),
+        h('span', { className: 'grow' }),
+        (counts.look || counts.ok) && h('span', { className: 'counts' },
+          counts.look ? h('span', { className: 'pill look' }, `${counts.look} to look at`) : null,
+          counts.ok ? h('span', { className: 'pill ok' }, `${counts.ok} look good`) : null),
+        h('select', { id: 'flow-jump', 'aria-label': 'Go to a flow', value: '', onChange: (e) => jump(e.target.value) },
+          h('option', { value: '' }, 'Go to a flow…'),
+          lanes.map((l) => h('option', { key: l.flow, value: l.flow }, `${l.flow} · ${l.title}`))),
+        h('div', { className: 'segmented', role: 'group', 'aria-label': 'Device' },
+          profiles.map((p) => h('button', { key: p, 'aria-pressed': String(p === profile), onClick: () => { setProfile(p); setPicked(null); store.set('screens-profile', p); } }, data.profiles[p])))),
+      h('div', { className: 'main' },
+        h('div', { className: 'canvas' },
+          h(RF.ReactFlow, {
+            nodes: shown, edges, nodeTypes, edgeTypes, minZoom: 0.05, maxZoom: 2, fitView: true, fitViewOptions: { padding: 0.05 },
+            nodesConnectable: false, elementsSelectable: true, proOptions: { hideAttribution: true },
+            onNodeClick: (_, n) => n.type === 'screen' && pick(n.id), onPaneClick: () => setPicked(null),
+          },
+          h(RF.Background, { gap: 24, size: 1, color: token('--border') }),
+          h(RF.Controls, { showInteractive: false }))),
+        pickedScreen && h(Sheet, { screen: pickedScreen, lane: pickedLane, about: data.about?.[pickedScreen.flow], reviews, onPick: pick, onClose: () => setPicked(null) })));
+  }
+
+  function App() {
+    const [state, setState] = useState({ loading: true });
+    useEffect(() => {
+      Promise.all([
+        fetch('screens.json').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`screens.json: ${r.status}`)))),
+        fetch('reviews.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+      ]).then(([data, reviews]) => setState({ data, reviews }), (error) => setState({ error }));
+    }, []);
+    if (state.error) {
+      return h('div', { className: 'empty' }, h('h2', null, 'No screens yet'),
+        h('p', null, 'Take them with ', h('code', null, 'npm run web:shots'), ' in tools/screenshots, then build this page with ', h('code', null, 'node tools/screens-map/build.mjs'), '.'));
+    }
+    if (state.loading) return h('div', { className: 'empty' }, h('h2', null, 'Loading the screens…'));
+    return h(RF.ReactFlowProvider, null, h(ScreensMap, { data: state.data, reviews: state.reviews }));
+  }
+
+  ReactDOM.createRoot(document.getElementById('app')).render(h(App));
+})();
+</script>

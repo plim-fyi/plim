@@ -1,0 +1,11 @@
+# Build context for the Containerfile (Podman reads this file too).
+target/
+.git/
+docs/
+node_modules/
+web/tests/
+**/*.db
+**/*.db-wal
+**/*.db-shm
+mise.toml
+dist/

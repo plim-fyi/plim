@@ -1,0 +1,46 @@
+{
+  "account_id": "aabbccddeeff00112233445566778899",
+  "connection": {
+    "holder_id": "0123456789abcdef0123456789abcdef",
+    "holder_secret": "199bce7cad93d713e34b4e3dd888177ad2a3c332a3618ca4a6762c8e989895b0",
+    "list_holder_id": "b9ec2045a9df192a51728c513ea1a3bb",
+    "list_holder_secret": "e7097d2741f647dcc5f3a2b39aea733b071952097d14bf36dfb92463359165d2",
+    "pubkey": "3093cb75b0b0a587ad1a81b38d88d93cf909d7d266d55ec39bac005f4f3cf7fa",
+    "pubkey_hash": "953536a55003425668062a20c51d0a16d72ae8d70eceaac0ba45cb14484f6291",
+    "secret": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
+  },
+  "doc_id": "3f1c2a9e-0000-4000-8000-000000000002",
+  "holder": {
+    "edit": {
+      "ciphertext": "qv3IxYPTgGcWq+gd0qvygdPwUX/I6BwE+VjEew+oLK9bEWBmzd2I0zhvVT3q+LtVWg==",
+      "holder_id": "0123456789abcdef0123456789abcdef",
+      "nonce": "tbIljSL0E3yPb0wV"
+    },
+    "read": {
+      "ciphertext": "F56UtvOYg+2FZIH3XwCuAfXnc6dzexi4OLYoCvux4SnylkF3aabfnqGFlRLRP+DDhaHBgzI1fPDY3XQMrzbjZK+hmYIBPIw6AdeZJr75UqUE",
+      "holder_id": "fedcba9876543210fedcba9876543210",
+      "nonce": "7/z+R+pMNkhAiugM"
+    },
+    "secret": "7777777777777777777777777777777777777777777777777777777777777777",
+    "share_id": "00112233445566778899aabbccddeeff",
+    "share_seed": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "token": "3b1e3ad301598066e15b61c2f01444a62903eabf55fd3289653a596e461e1b71"
+  },
+  "keyring": {
+    "key_version": 1,
+    "nonce": "va2vmzK5caU1lUKO",
+    "sig": "M0w+hv+cdvwHaMA0nPlds/NmYXmsVmB0AQdtYJFD17sXGNaT0PHTU8oxD5UK2wGTS+wI11J+bdtkUJCyVC3JAA==",
+    "wrapped": "7PsNPCTPhY1NhGYof6B/QNYjGEJJsjcEZqP4viXgu82XsGIhwxI9dBLAs1/yqXpH"
+  },
+  "phrase": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+  "pubkey_hash": "19848ca26f33eb49c3c0b4e62dd7c3ef9621e2af7e74ff3377088a87ea2fb602",
+  "text": "hello from Rust — ünïcödé ✓",
+  "title": "Rust title",
+  "update": {
+    "ciphertext": "J+NlprdIRJ4tyouG0hgUlCrQN6N1c4c0Fo+7Pitp9/goFcKWQA7jZTMMnUt+FBn9sWGFy1AHpGAxB69zNi+2AbVZkouWGRcFa0EGmn4vdYvUDZ9sqQ4vFROcILXfsOKK0d7z9HXR4GDZq4ekradIr2xv4uRxjfrngke+vECKkK72YN8tqSg=",
+    "key_version": 1,
+    "nonce": "TIiz37WZo4LKI7cU",
+    "sig": "J+I0DvXMmsd1ye/epY2ITZknD920yHPkP9sTkRmRU5nRB9MknmPopcN8JpjMWGhuvkAo/X56Ngub6Ffcdas9Dg=="
+  },
+  "vault_key": "2222222222222222222222222222222222222222222222222222222222222222"
+}

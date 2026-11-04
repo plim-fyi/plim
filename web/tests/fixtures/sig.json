@@ -1,0 +1,19 @@
+{
+  "pubkey": "6kpsY+KcUgq+9VB7Ey7F+ZVHdq6+vnuSQh7qaRRG0iw=",
+  "pubkey_hash": "fe812c12f3ab4ce6ac5db69ac352f906cb1b11ef43fb33e252ef7ff552263889",
+  "account_id": "0123456789abcdef0123456789abcdef",
+  "doc_id": "index",
+  "kind": "snapshot",
+  "key_version": 3,
+  "covers_seq": 42,
+  "nonce": "AQEBAQEBAQEBAQEB",
+  "ciphertext": "b3BhcXVlIGNpcGhlcnRleHQgYnl0ZXM=",
+  "auth_nonce": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=",
+  "blob_msg": "AAAADHRpcm8vdjEvYmxvYgAAACAwMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZgAAAAVpbmRleAAAAAhzbmFwc2hvdAAAAAgAAAAAAAAAAwAAAAgAAAAAAAAAKgAAAAwBAQEBAQEBAQEBAQEAAAAXb3BhcXVlIGNpcGhlcnRleHQgYnl0ZXM=",
+  "blob_sig": "qb00xS8qYVASd9KrExMExhnYgjHkmIlfl0rI1WOBnsXJUUH0ln/xqincMY9EUAZJIjNViXzhGp8ujoCMP9QnCQ==",
+  "auth_sig": "15Zkiq2enclmH5r83zDIthvgsKda1exdwliNesBkA6Heq41oROzYcP6CaE20eLjFKH3SGGfIXl4XZTGKhypCAw==",
+  "delete_msg": "AAAAFnRpcm8vdjEvZGVsZXRlLWFjY291bnQAAAAgMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWYAAAAgAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=",
+  "delete_sig": "QxpsY9M+Q1N7cIp9TwgIpXa1qwWZe6iGpVhymuV+beQMDdXP6awtLw7S6W9bLan5DHYnu/0Loq4y9yRJWPm4DQ==",
+  "action_msg": "AAAADnRpcm8vdjEvYWN0aW9uAAAAIDAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmAAAAC3B1dC1wYXNza2V5AAAABWluZGV4AAAAIAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAAAAIwEBAQEBAQEBAQEBAW9wYXF1ZSBjaXBoZXJ0ZXh0IGJ5dGVz",
+  "action_sig": "UcjsKv8UqMAEAdGxYjUiE+neiekdjimFLrRu880C4aObCuMcxUBeYTmOOlbZXpVgr+JqroJRc3wK7cBAmsP8Cw=="
+}

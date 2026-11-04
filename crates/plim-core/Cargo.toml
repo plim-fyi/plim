@@ -1,0 +1,29 @@
+[package]
+name = "plim-core"
+version = "0.1.0"
+edition = "2024"
+description = "Shared Plim protocol: canonical encoding, signatures, proof-of-work and client crypto"
+license = "MIT OR Apache-2.0"
+
+[features]
+default = ["crypto"]
+# The client's keys and encryption (the `crypto` module). Off for the web app's
+# WebAssembly (crates/plim-wasm), which needs only the protocol code.
+crypto = ["dep:aes-gcm", "dep:bip39", "dep:getrandom", "dep:hkdf", "dep:pbkdf2"]
+
+[dependencies]
+aes-gcm = { version = "0.11.1", optional = true }
+bip39 = { version = "3.0.0", optional = true }
+ed25519-dalek = "3.0.0"
+getrandom = { version = "0.4.3", optional = true }
+hex = "0.4.3"
+hkdf = { version = "0.13.0", optional = true }
+miniz_oxide = "0.9.1"
+pbkdf2 = { version = "0.13.0", optional = true }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+
+[dev-dependencies]
+base64 = "0.23.1"
+yrs = "0.28.0"

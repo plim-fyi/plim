@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Filled in by the server on each load: lets the editor's own <style> through the CSP. -->
+    <meta name="style-nonce" content="" />
+    <meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141414" media="(prefers-color-scheme: dark)" />
+    <!-- Added to the home screen: open full screen, like an app. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Plim" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>Plim</title>
+    <!-- The preview when a link is shared (iMessage shows the title and image; others the description too).
+         The server makes og:url and og:image absolute from PLIM_PUBLIC_URL. -->
+    <meta name="description" content="Your notes, on every device. No account to create, no password to remember. Private by design." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Plim" />
+    <meta property="og:title" content="Plim — your notes, on every device" />
+    <meta property="og:description" content="No account to create, no password to remember. Private by design." />
+    <meta property="og:url" content="/" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Plim: your notes, on every device." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="stylesheet" href="style.css" />
+    <!-- First: if the modules fail, it says so instead of a blank page (#134) -->
+    <script src="boot.js"></script>
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <noscript>Plim needs JavaScript: all encryption happens in your browser.</noscript>
+
+    <!-- Home: plim.fyi/ on a device without a vault, a short overview (the long one: about.plim.fyi);
+         making or opening a vault is at /login, the welcome card below (ui/onboarding.js) -->
+    <section id="view-home" class="view center" hidden>
+      <div class="card home-card">
+        <div class="brand"><img class="logo" src="icon.svg" alt="" />Plim</div>
+        <p class="lede"><strong>Your notes, on every device.</strong><br />Plain markdown, end-to-end encrypted, for you and the agents you trust.</p>
+        <ul class="home-points">
+          <li><b>Private by design.</b> Your notes are encrypted on your device; the server keeps what it can't read. No account to create, no password to remember: a passkey or 12 words.</li>
+          <li><b>Everywhere you write.</b> On your computer and your phone, offline too, in sync. A note's title and tags sit in its frontmatter, as other markdown tools keep them.</li>
+          <li><b>With your agents.</b> Share a note with Claude or Codex and they read and edit it; <code>plim</code> does the same from your terminal.</li>
+        </ul>
+        <div class="stack">
+          <a class="button primary" href="/login">Get started</a>
+          <a class="button" href="/login">Sign in</a>
+        </div>
+        <p class="home-more"><a class="lede-link" href="https://about.plim.fyi">How it works&nbsp;→</a></p>
+      </div>
+    </section>
+
+    <!-- Welcome: /login -->
+    <section id="view-welcome" class="view center" hidden>
+      <div class="card">
+        <div class="brand"><img class="logo" src="icon.svg" alt="" />Plim</div>
+        <!-- (How it works: what Plim is, on its own site, about.plim.fyi) -->
+        <p class="lede"><strong>Your notes, on every device.</strong><br />No account to create, no password to remember. Private by design. <a class="lede-link" href="https://about.plim.fyi">How it works&nbsp;→</a></p>
+        <div class="stack">
+          <!-- At the server's account limit (PLIM_MAX_ACCOUNTS): no new vaults for now -->
+          <p id="welcome-note" class="notice" role="status" hidden></p>
+          <p id="signups-closed" class="notice" hidden>Plim isn’t taking new vaults right now. If you already have one, sign in below.</p>
+          <button id="btn-create" class="primary">Create a new vault</button>
+          <button id="btn-signin-passkey" hidden>Sign in with a passkey</button>
+          <button id="btn-restore">I have a recovery phrase</button>
+          <p class="error" id="welcome-error" role="alert"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Locked: this device has used a passkey -->
+    <section id="view-locked" class="view center" hidden>
+      <div class="card">
+        <div class="brand"><img class="logo" src="icon.svg" alt="" />Plim</div>
+        <div>
+          <h2>Welcome back</h2>
+          <p class="muted">Plim is locked on this device.</p>
+        </div>
+        <p id="lock-note" class="muted tiny" role="status" hidden></p>
+        <div class="stack">
+          <button type="button" id="unlock-passkey" class="primary">Unlock with passkey</button>
+          <p class="error" id="unlock-error" role="alert"></p>
+        </div>
+        <div class="links">
+          <button type="button" class="link" id="unlock-use-phrase">Use your recovery phrase instead</button>
+          <button type="button" class="link" id="forget-device">Forget this device</button>
+        </div>
+        <!-- (Under the card, taking no room in it: it's known a moment after the screen shows, and the card would grow and move, #442.) -->
+        <p class="muted tiny locked-offline" id="locked-offline" hidden>You’re offline — your passkey can still unlock this device’s saved copy.</p>
+      </div>
+    </section>
+
+    <!-- Show recovery phrase -->
+    <section id="view-phrase" class="view center" hidden>
+      <div class="card wide">
+        <!-- The steps of a multi-screen flow; app.js moves it into the current screen's card. -->
+        <nav id="stepper" class="stepper" aria-label="Progress" hidden><ol></ol></nav>
+        <h2 id="phrase-title">Your recovery phrase</h2>
+        <p class="muted">These 12 words <strong>are</strong> your account, and you’ll need them on any new device. Write them down in order and keep them somewhere safe: anyone with them can read your notes, and if you lose them, nobody — including us — can recover your notes.</p>
+        <ol id="phrase-words" class="words"></ol>
+        <div class="row">
+          <button type="button" id="btn-copy-phrase" class="small">Copy</button>
+        </div>
+        <label class="check"><input type="checkbox" id="phrase-saved" /> I've written these words down</label>
+        <div class="row end">
+          <button type="button" id="phrase-back" class="link">Back</button>
+          <button id="phrase-continue" class="primary" disabled>Continue</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Confirm recovery phrase -->
+    <section id="view-confirm" class="view center" hidden>
+      <form id="confirm-form" class="card wide">
+        <h2>Confirm your phrase</h2>
+        <p class="muted">Enter these words from your phrase to make sure you have them.</p>
+        <div id="confirm-fields" class="stack"></div>
+        <p class="error" id="confirm-error" role="alert"></p>
+        <div class="row end">
+          <button type="button" id="confirm-back" class="link">Back</button>
+          <button class="primary">Confirm</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Restore -->
+    <section id="view-restore" class="view center" hidden>
+      <form id="restore-form" class="card wide">
+        <h2>Open your vault</h2>
+        <p class="muted">Enter your 12 recovery words, separated by spaces.</p>
+        <textarea id="restore-input" rows="3" autocomplete="off" autocapitalize="off" spellcheck="false" required></textarea>
+        <p class="error" id="restore-error" role="alert"></p>
+        <div class="row end">
+          <button type="button" id="restore-back" class="link">Back</button>
+          <button class="primary">Open vault</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Busy -->
+    <section id="view-busy" class="view center" hidden>
+      <div class="card narrow center-text">
+        <div class="spinner" aria-hidden="true"></div>
+        <p id="busy-text" aria-live="polite">Working…</p>
+      </div>
+    </section>
+
+    <!-- Passkey: create a vault with one, add one after using the 12 words, or keep it after a phrase change -->
+    <section id="view-passkey" class="view center" hidden>
+      <div class="card wide">
+        <h2 id="passkey-title"></h2>
+        <p class="muted" id="passkey-lede"></p>
+        <button type="button" id="passkey-go" class="choice">
+          <span class="choice-title" id="passkey-go-title"></span>
+          <span class="choice-sub" id="passkey-go-sub">Face ID, Touch ID, fingerprint or Windows Hello</span>
+        </button>
+        <p class="error" id="passkey-error" role="alert"></p>
+        <div class="row end">
+          <button type="button" id="passkey-back" class="link">Back</button>
+          <button type="button" id="passkey-alt" class="link"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notes -->
+    <section id="view-notes" class="view notes" hidden>
+      <div id="offline-bar" class="offline-bar" role="status" title="Changes are saved on this device and sync when you’re back online." hidden>
+        <span><strong>Offline</strong><span class="offline-more"> · saved on this device</span></span><span class="visually-hidden">: changes sync when you’re back online.</span>
+      </div>
+      <aside class="sidebar">
+        <header class="sidebar-head">
+          <div class="brand small"><img class="logo" src="icon.svg" alt="" />Plim</div>
+          <!-- Desktop: hide the sidebar (Ctrl+\); while it's hidden and peeking, keep it open again -->
+          <button type="button" id="sidebar-toggle" class="small icon-only panel-btn" aria-label="Hide the sidebar" title="Hide the sidebar (Ctrl+\)">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.75" /><path d="M6.25 2.75v10.5" /></svg>
+          </button>
+        </header>
+        <!-- New note: always at the top; what's below it scrolls (on phones it's in the footer instead) -->
+        <div class="sidebar-actions sidebar-new">
+          <button type="button" id="btn-new" class="side-action new" title="New note (Ctrl+Alt+N)">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V8" /><path d="M11.5 2.5l2 2L8 10H6V8z" /></svg>
+            New note<kbd class="shortcut" aria-hidden="true">Ctrl Alt N</kbd>
+          </button>
+        </div>
+        <!-- A phone's views (#539, #552, ui/taglist.js): Notes | Agents (data-view "connected"), at the top of the list (on a computer, the sidebar's) -->
+        <div id="view-switch" class="view-switch-tabs" role="radiogroup" aria-label="View" hidden>
+          <button type="button" role="radio" data-view="notes" aria-checked="true">Notes</button>
+          <button type="button" role="radio" data-view="connected" aria-checked="false"><span class="view-marks chip-marks"></span>Agents</button>
+        </div>
+        <!-- Search (#24, ui/search.js): the list shows the notes with every word, on this device -->
+        <div class="sidebar-search" role="search">
+          <label class="search-field">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" /><path d="m10.5 10.5 3 3" /></svg>
+            <input type="search" id="search-input" placeholder="Search" aria-label="Search notes" title="Search notes (Ctrl+Shift+F)" autocomplete="off" spellcheck="false" enterkeyhint="search">
+            <button type="button" id="search-clear" class="search-clear" aria-label="Clear the search" hidden><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" /></svg></button>
+          </label>
+          <p id="search-summary" class="search-summary" aria-live="polite" hidden></p>
+        </div>
+        <div id="sidebar-scroll" class="sidebar-scroll">
+        <!-- Views (#539, #552, ui/taglist.js): where you are. Every note; Connected, those shared with
+             agents and those an agent or a script wrote in (once there are some, or an agent is
+             connected); the deleted ones. (A phone: the switch above, and
+             Recently deleted at the end of the list.) -->
+        <nav id="notes-nav" class="sidebar-actions views" aria-label="Views">
+          <button type="button" id="view-notes" class="side-action view" data-view="notes" aria-current="page">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h9v11h-9z" /><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" /></svg>
+            Notes<span id="notes-count" class="side-count"></span>
+          </button>
+          <button type="button" id="view-connected" class="side-action view" data-view="connected" hidden>
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h8A1.5 1.5 0 0 1 13 4v9.5H4.5a1 1 0 0 1-1-1z" /><path d="M3.5 12.5a1 1 0 0 1 1-1H13" /></svg>
+            Agents<span class="view-marks chip-marks side-marks"></span>
+          </button>
+          <button type="button" id="btn-trash" class="side-action">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" /></svg>
+            Recently deleted<span id="trash-count" class="side-count" hidden></span>
+          </button>
+        </nav>
+        <!-- Recently deleted picked (#354): two lines, ‹ All notes and the order above, its name below -->
+        <div class="notes-head" id="notes-head">
+          <h2 class="sidebar-label" id="notes-label">Notes</h2>
+          <button type="button" id="tag-clear" class="tag-clear" hidden><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" /></svg>All notes</button>
+          <!-- The list's order (#344, ui/menus.js): by last edited or date created -->
+          <button type="button" id="notes-sort" class="notes-sort" aria-haspopup="menu" aria-expanded="false" title="Sort the notes">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3v10M2.5 10.5 5 13l2.5-2.5M11 13V3M8.5 5.5 11 3l2.5 2.5" /></svg>
+            <span id="notes-sort-label">Last edited</span>
+          </button>
+        </div>
+        <!-- The Connected view (#552): what's in it, and who reads and edits the shared ones -->
+        <p id="notes-about" class="notes-about" hidden></p>
+        <!-- Who writes (#564, ui/taglist.js): each agent or script that wrote in your notes, its notes,
+             those in the last 7 days, and when it last wrote; a writer picked: only its notes -->
+        <table id="writers" class="writers" hidden>
+          <caption class="visually-hidden">Who writes in your notes</caption>
+          <thead><tr><th scope="col">Writer</th><th scope="col" class="num">Notes</th><th scope="col" class="num" title="Notes written in during the last 7 days">7 days</th><th scope="col" class="num">Last</th></tr></thead>
+          <tbody id="writers-rows"></tbody>
+        </table>
+        <!-- Tags (#308, #539, #549, ui/taglist.js): what a note is about, as chips over the list, inside
+             the view: one row that scrolls sideways, each tag a word (#gym/legs is one); the one picked
+             first, with ×. None picked: every note -->
+        <div id="chips" class="chips" hidden>
+          <div id="chip-row" class="chip-row" role="group" aria-label="Tags">
+            <span id="tag-chips" class="tag-chips"></span>
+          </div>
+        </div>
+        <ul id="note-list" class="note-list" aria-labelledby="notes-label"></ul>
+        <!-- The most recent notes are listed first; the rest on request -->
+        <button type="button" id="notes-more" class="side-action notes-more" hidden></button>
+        <!-- A phone: Recently deleted, at the end of the list (#539) -->
+        <button type="button" id="btn-trash-foot" class="side-action trash-foot"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" /></svg><span>Recently deleted</span><span id="trash-count-foot" class="side-count"></span></button>
+        <!-- Recently deleted (#190, ui/trash.js): in the notes' place while it's picked -->
+        <p id="trash-about" class="trash-about">Deleted notes stay here for 30 days, then they’re deleted for good.</p>
+        <ul id="trash-list" class="note-list trash-list" aria-labelledby="notes-label"></ul>
+        <div id="trash-forever-section" class="trash-forever" hidden>
+          <h3 class="sidebar-label" id="trash-forever-label">Deleted forever</h3>
+          <ul id="trash-forever" class="note-list trash-list" aria-labelledby="trash-forever-label"></ul>
+        </div>
+        </div>
+        <footer class="sidebar-foot">
+          <div class="row foot-actions">
+            <!-- You: Settings and Log out, in a menu -->
+            <button type="button" id="btn-account" class="account" aria-haspopup="menu" aria-expanded="false" title="Settings and Log out">
+              <span id="account-avatar" class="avatar" aria-hidden="true"></span>
+              <span id="account-name" class="account-name">Account</span>
+              <svg class="icon caret" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.5 8 10l3.5-3.5" /></svg>
+            </button>
+            <!-- On phones, New note is here, where a thumb reaches it (not at the top of the list) -->
+            <button type="button" id="btn-new-foot" class="new-pill mobile-only">
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h8a1.5 1.5 0 0 0 1.5-1.5V8" /><path d="M11.5 2.5l2 2L8 10H6V8z" /></svg>
+              New note
+            </button>
+          </div>
+        </footer>
+        <div id="sort-menu" class="menu" role="menu" aria-labelledby="sort-menu-title" tabindex="-1" hidden>
+          <p id="sort-menu-title" class="menu-title">Sort by</p>
+          <button type="button" role="menuitemradio" data-sort="edited" aria-checked="true">Last edited<svg class="icon check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" /></svg></button>
+          <button type="button" role="menuitemradio" data-sort="created" aria-checked="false">Date created<svg class="icon check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" /></svg></button>
+          <p class="menu-note">Newest first. Kept on this device.</p>
+        </div>
+        <div id="account-menu" class="menu" role="menu" hidden>
+          <button type="button" id="btn-settings" role="menuitem">
+            <svg class="icon g24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>Settings
+          </button>
+          <div class="menu-sep" role="separator"></div>
+          <!-- Locks this device: its keys leave the page; notes stay saved, and the passkey or the 12 words open it again -->
+          <button type="button" id="btn-logout" role="menuitem" title="Lock this device">
+            <svg class="icon g24" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>Log out
+          </button>
+        </div>
+      </aside>
+      <!-- Desktop, sidebar hidden: the window's left edge, where pointing peeks at it -->
+      <div id="sidebar-edge" class="sidebar-edge" aria-hidden="true"></div>
+      <!-- A note's actions: from the note bar's ⋮, or right-click / long-press on a row
+           (outside the sidebar: on a phone that's hidden while a note is open) -->
+      <!-- A note's menu: a row's (right-click, long press) or the open note's ⋮. On phones the
+           open note's ⋯ holds what the bar has on desktop too: who's here, History and Share. -->
+      <div id="note-menu" class="menu" role="menu" hidden>
+        <div id="note-menu-people" class="menu-people" hidden></div>
+        <button type="button" id="note-menu-history" role="menuitem" hidden>
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2" /><path d="M8 2v4M8 10v4" /></svg>History
+        </button>
+        <!-- Share: "Shared" (people: Live), or "Share…"; "and with agents" under it if it is (ui/menus.js) -->
+        <button type="button" id="note-menu-share" role="menuitem">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V1.75M5 4.5l3-3 3 3" /><path d="M5 7H4a1.5 1.5 0 0 0-1.5 1.5v4A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-4A1.5 1.5 0 0 0 12 7h-1" /></svg>
+          <span class="menu-words"><span id="note-menu-share-label">Share…</span><span id="note-menu-share-sub" class="menu-sub" hidden></span></span><span id="note-menu-live" class="menu-live" hidden></span>
+        </button>
+        <button type="button" id="note-menu-link" role="menuitem" title="The note’s address, to bookmark or paste; it opens for you">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-1 1" /><path d="M9.5 6.5a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l1-1" /></svg>Copy link
+        </button>
+        <!-- Download (#47): the note as a Markdown file, made on this device (ui/export.js) -->
+        <button type="button" id="note-menu-download" role="menuitem" title="The note as a Markdown file, with its tags and dates">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8.5M4.75 7.25 8 10.5l3.25-3.25" /><path d="M2.5 11.5v1A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-1" /></svg>Download
+        </button>
+        <div class="menu-sep" role="separator"></div>
+        <button type="button" id="note-menu-delete" class="danger" role="menuitem">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" /></svg>Delete note
+        </button>
+      </div>
+      <div class="editor-pane">
+        <header class="editor-head">
+          <!-- Back to the list (phones) -->
+          <!-- Desktop, sidebar hidden: point at it to peek at the list, click to keep it open -->
+          <button type="button" id="sidebar-show" class="small icon-only panel-btn" aria-label="Show the sidebar" title="Show the sidebar (Ctrl+\)">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.75" /><path d="M6.25 2.75v10.5" /></svg>
+          </button>
+          <button type="button" id="btn-back" class="small ghost mobile-only" aria-label="Notes" title="Notes">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" /></svg>
+          </button>
+          <!-- The open note's title (its first line), kept up to date as you type -->
+          <div id="note-title" class="note-title"></div>
+          <!-- Who else is in a shared note (presence.js) -->
+          <div id="presence" class="presence" aria-label="Also here"></div>
+          <span id="app-here" class="app-here" hidden></span>
+          <!-- Shared with agents (#514, ui/menus.js): their letters; the Share dialog, where it's switched -->
+          <button type="button" id="note-agents" class="small agents-pill" hidden><span id="note-agents-marks" class="chip-marks"></span><span class="pill-words">Shared with agents</span></button>
+          <!-- Preview (#302, ui/reading.js): a phone's toggle; elsewhere Edit / Preview -->
+          <button type="button" id="note-preview" class="small icon-only view-toggle" aria-label="Preview" title="Preview" hidden>
+            <svg class="icon eye" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></svg>
+            <svg class="icon pencil" viewBox="0 0 16 16" aria-hidden="true"><path d="M11.5 2.5l2 2L6 12H4v-2z" /><path d="M10 4l2 2" /></svg>
+          </button>
+          <div id="note-mode" class="view-switch" role="radiogroup" aria-label="View" hidden>
+            <button type="button" role="radio" data-mode="edit" aria-checked="true" title="Edit (Ctrl+/)">Edit</button>
+            <button type="button" role="radio" data-mode="split" aria-checked="false" title="Split: the markdown and the page side by side">Split</button>
+            <button type="button" role="radio" data-mode="preview" aria-checked="false" title="Preview (Ctrl+/)">Preview</button>
+          </div>
+          <!-- History: earlier versions of the note (history.js); its icon, a point on a timeline -->
+          <button type="button" id="note-history" class="small" title="History" aria-label="History" hidden>
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2" /><path d="M8 2v4M8 10v4" /></svg>
+          </button>
+          <!-- "Share" (a private note) or "Shared" (a shared one): the share dialog -->
+          <!-- Share: an icon; while the note is shared, a dot on its corner (green while live) -->
+          <button type="button" id="note-share" class="small icon-only" aria-label="Share" hidden>
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V1.75M5 4.5l3-3 3 3" /><path d="M5 7H4a1.5 1.5 0 0 0-1.5 1.5v4A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-4A1.5 1.5 0 0 0 12 7h-1" /></svg>
+          </button>
+          <!-- More (Delete note): the same menu as a row's right-click; on phones
+               also History and Share (hidden from the bar there), and the sharing light -->
+          <button type="button" id="note-more" class="small icon-only" title="More" aria-label="More actions for this note" aria-haspopup="menu" aria-expanded="false" hidden>
+            <svg class="icon dots-down" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="3.5" r=".6" /><circle cx="8" cy="8" r=".6" /><circle cx="8" cy="12.5" r=".6" /></svg>
+            <svg class="icon dots-across" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r=".6" /><circle cx="8" cy="8" r=".6" /><circle cx="12.5" cy="8" r=".6" /></svg>
+          </button>
+        </header>
+        <!-- The note's header (#581, ui/notehead.js): its frontmatter, folded: the title, the tags as
+             badges, + tag (a picker of yours), and yaml › (the block itself, in the editor) -->
+        <div id="note-head" class="note-head" hidden>
+          <input id="note-head-title" class="note-head-title" type="text" aria-label="Title" placeholder="Untitled" autocomplete="off" spellcheck="true">
+          <div class="note-head-props">
+            <span class="note-head-label" aria-hidden="true">tags</span>
+            <span id="note-head-tags" class="note-head-tags" role="group" aria-label="Tags"></span>
+            <button type="button" id="note-head-add" class="head-tag-add" aria-haspopup="listbox" aria-expanded="false">+ tag</button>
+            <button type="button" id="note-head-yaml" class="note-head-yaml" aria-pressed="false" title="The note’s frontmatter, as YAML">yaml ›</button>
+          </div>
+          <div id="tag-picker" class="tag-picker" hidden>
+            <input id="tag-picker-input" class="tag-picker-input" type="text" aria-label="Tag" placeholder="#tag" autocomplete="off" autocapitalize="none" spellcheck="false">
+            <ul id="tag-picker-list" class="tag-picker-list" role="listbox" aria-label="Your tags"></ul>
+          </div>
+        </div>
+        <!-- The editor, and Preview: the note as a page; side by side in Split (#302, ui/reading.js) -->
+        <div id="note-body" class="note-body">
+          <div id="editor" hidden></div>
+          <div id="reading" class="reading" hidden></div>
+          <!-- What a search found in the open note (#24, ui/search.js): how many, the next and the one before -->
+          <div id="find-bar" class="find-bar" role="search" aria-label="Matches in this note" hidden>
+            <span id="find-words" class="find-words"></span>
+            <span id="find-count" class="find-count" aria-live="polite"></span>
+            <button type="button" id="find-prev" class="small icon-only" aria-label="Previous match" title="Previous match (Shift+Enter)"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg></button>
+            <button type="button" id="find-next" class="small icon-only" aria-label="Next match" title="Next match (Enter)"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg></button>
+            <button type="button" id="find-close" class="small icon-only" aria-label="Stop highlighting" title="Stop highlighting (Esc)"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" /></svg></button>
+          </div>
+        </div>
+        <div id="empty" class="empty">
+          <p id="empty-text">Select a note, or start a new one.</p>
+          <p id="empty-detail" class="empty-detail" hidden></p>
+          <button type="button" id="empty-new" class="primary small">New note</button>
+          <button type="button" id="empty-reload" class="primary small" hidden>Reload</button>
+        </div>
+        <!-- A note in Recently deleted (#190, ui/trash.js): read, not edited; Restore or Delete forever.
+             (Desktop: the bar's actions beside it; a phone: a bar at the bottom.) -->
+        <section id="trash-view" class="trash-view" aria-labelledby="note-title" hidden>
+          <div class="trash-bar" role="note">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" /></svg>
+            <p id="trash-when"></p>
+          </div>
+          <div id="trash-page" class="reading trash-page"></div>
+          <div id="trash-message" class="trash-message" hidden>
+            <p id="trash-message-title" class="trash-message-title"></p>
+            <p id="trash-message-detail"></p>
+          </div>
+          <div class="trash-actions keep-clear">
+            <button type="button" id="trash-purge" class="small danger">Delete forever</button>
+            <button type="button" id="trash-restore" class="small primary">Restore</button>
+          </div>
+        </section>
+        <span id="save-status" class="status" data-state="saved" aria-live="polite" hidden>Saved</span>
+      </div>
+    </section>
+
+    <!-- Rollback warning -->
+    <div id="rollback-banner" class="banner" role="alert" hidden>
+      <div>
+        <strong>The server sent older data than this device has seen before.</strong>
+        <p id="rollback-text"></p>
+      </div>
+      <button id="rollback-ack" class="small">I understand</button>
+    </div>
+
+    <!-- A change to a shared note not signed with its key (#77) -->
+    <div id="forged-banner" class="banner" role="alert" hidden>
+      <div>
+        <strong>Plim ignored a change to a shared note that wasn’t made with its edit link.</strong>
+        <p>The server should have refused it. It may have been changed to let someone without an edit link write to the note. Your notes stay encrypted, and real edits still arrive.</p>
+      </div>
+      <button id="forged-ack" class="small">OK</button>
+    </div>
+
+    <!-- A short message with an optional action (e.g. "Note deleted · Undo") -->
+    <div id="toast" class="toast" role="status" hidden>
+      <span id="toast-text"></span>
+      <button type="button" id="toast-action" class="small ghost" hidden></button>
+    </div>
+
+    <!-- The server has a different version of Plim than this page (#134) -->
+    <div id="update-banner" class="banner info" role="status" hidden>
+      <div>
+        <strong>Plim was updated.</strong>
+        <p>Reload to get the new version. Your notes are saved.</p>
+      </div>
+      <button id="update-reload" class="small primary">Reload</button>
+    </div>
+
+    <!-- Until the recovery phrase is saved (vaults created with a passkey) -->
+    <div id="phrase-banner" class="banner info" role="status" hidden>
+      <div>
+        <strong>Save your recovery phrase.</strong>
+        <p>If you lose your passkey, your 12 words are the only way back into your notes.</p>
+      </div>
+      <div class="row">
+        <button id="phrase-banner-later" class="small ghost">Later</button>
+        <button id="phrase-banner-show" class="small primary">Show phrase</button>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <!-- Share a note (#70): links that open it, for editing or viewing -->
+    <dialog id="share-dialog" aria-labelledby="share-title">
+      <form method="dialog" class="settings">
+        <header class="settings-head">
+          <h2 id="share-title" tabindex="-1" autofocus>Share note</h2>
+          <button value="close" class="icon-btn" aria-label="Close">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          </button>
+        </header>
+        <!-- Agents (#514, ui/share-dialog.js): a switch; on, every agent you connect reads and edits it -->
+        <div id="share-agents" class="group share-agents">
+          <label class="setting">
+            <span id="share-agents-marks" class="share-agents-marks"></span>
+            <span class="setting-words"><span class="setting-title">Agents</span><span id="share-agents-sub" class="setting-sub"></span></span>
+            <input type="checkbox" id="share-agents-on" class="switch" role="switch" />
+          </label>
+        </div>
+        <div id="share-off" class="stack">
+          <p class="section-label">People</p>
+          <p class="muted">Get links that open <strong id="share-note-title"></strong>: one to edit it together, one to view it. People don’t need a Plim account. The note stays end-to-end encrypted: the key is in the link, and never reaches the server.</p>
+          <div class="row end"><button type="button" id="share-create" class="primary small">Create links</button></div>
+        </div>
+        <div id="share-on" class="stack" hidden>
+          <!-- Who has it: people with a link of their own (#369) -->
+          <div class="stack tight" id="share-who" hidden>
+            <p class="section-label">Who has this note</p>
+            <ul id="share-holders" class="group share-holders" aria-label="Who has this note"></ul>
+          </div>
+          <!-- Sharing with people: its links (held back while only apps have it), and a link for someone -->
+          <div class="stack tight" id="share-people">
+            <p class="section-label" id="share-people-label">Share with people</p>
+            <div class="group" id="share-links-off" hidden>
+              <div class="setting stacked">
+                <p class="muted tiny">Links to edit or view it, for anyone you send one to. People don’t need a Plim account.</p>
+                <div class="row"><button type="button" id="share-show-links" class="primary small">Create links</button><button type="button" class="small" data-someone>A link for someone…</button></div>
+              </div>
+            </div>
+            <div class="group" id="share-links">
+              <div class="setting stacked">
+                <div class="setting-title">Can edit</div>
+                <div class="share-link"><input id="share-edit-link" readonly aria-label="Edit link" /><button type="button" class="small" data-copy="share-edit-link">Copy</button></div>
+              </div>
+              <div class="setting stacked">
+                <div class="setting-title">Can view</div>
+                <div class="share-link"><input id="share-read-link" readonly aria-label="View link" /><button type="button" class="small" data-copy="share-read-link">Copy</button></div>
+              </div>
+              <div class="setting" id="share-someone-row">
+                <p class="muted tiny">Or a link of someone’s own, to take back without touching the others.</p>
+                <button type="button" class="small" data-someone>A link for someone…</button>
+              </div>
+            </div>
+            <!-- A link for someone (#369): one of their own, so it can be taken back alone -->
+            <div class="group" id="share-person" hidden>
+              <div class="setting stacked">
+                <div class="setting-title">A link for someone</div>
+                <p class="muted tiny">Only theirs: take it back without touching anyone else’s. The name is just for you.</p>
+                <div class="share-person-add">
+                  <input id="share-person-name" placeholder="Name" aria-label="Who the link is for" maxlength="40" autocomplete="off" />
+                  <select id="share-person-role" aria-label="What they can do">
+                    <option value="edit">Can edit</option>
+                    <option value="read">Can view</option>
+                  </select>
+                  <button type="button" id="share-person-go" class="small">Add link</button>
+                </div>
+              </div>
+            </div>
+            <p class="warn tiny" id="share-warn">Anyone with a link can open this note. Share them only with people you trust.</p>
+          </div>
+          <!-- Shared with you through a link of your own: that link -->
+          <div class="setting stacked" id="share-yours" hidden>
+            <div class="setting-title">Your link</div>
+            <div class="share-link"><input id="share-your-link" readonly aria-label="Your link" /><button type="button" class="small" data-copy="share-your-link">Copy</button></div>
+          </div>
+          <div class="row end">
+            <button type="button" id="share-replace" class="small">Replace links…</button>
+            <button type="button" id="share-stop" class="small danger">Stop sharing</button>
+          </div>
+        </div>
+        <p class="error" id="share-error" role="alert"></p>
+      </form>
+    </dialog>
+
+    <!-- Connect an app (#369, ui/connections.js): the connector sent the person to /connect to say yes -->
+    <dialog id="connect-dialog" aria-labelledby="connect-title">
+      <form method="dialog" class="settings">
+        <header class="settings-head">
+          <h2 id="connect-title" tabindex="-1" autofocus>Connect Claude to your notes?</h2>
+          <button value="close" class="icon-btn" aria-label="Close">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          </button>
+        </header>
+        <div class="stack">
+          <p class="muted"><strong id="connect-who">Claude</strong> asked to connect to your Plim. <span id="connect-to"></span></p>
+          <p class="warn" id="connect-unknown" role="alert" hidden></p>
+          <div class="group">
+            <div class="setting stacked" id="connect-notebook">
+              <div class="setting-title">It sees what you share with agents</div>
+              <div class="setting-sub">It reads and edits the notes you share with agents, and keeps new things there when you ask. Every agent you connect sees them. To give it a note of yours, turn on Agents in the note’s Share.</div>
+            </div>
+            <div class="setting stacked">
+              <div class="setting-title">Nothing else</div>
+              <div class="setting-sub">Your other notes stay end-to-end encrypted, out of its reach, whatever their tags. It can’t delete notes.</div>
+            </div>
+          </div>
+          <div class="setting stacked connect-name">
+            <label class="setting-title" for="connect-name">Call this connection</label>
+            <input id="connect-name" maxlength="60" autocomplete="off" />
+          </div>
+          <p class="muted tiny">To answer it, Plim’s connector reads the notes you give it, and its answers come from the AI service. Disconnect any time in Settings.</p>
+          <div class="row end">
+            <button value="close" class="small">Cancel</button>
+            <button type="button" id="connect-go" class="primary small">Connect</button>
+          </div>
+          <p class="error" id="connect-error" role="alert"></p>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- The switch to sharing with agents (#514): once, for notes agents reached through tags -->
+    <dialog id="agents-switch-dialog" aria-labelledby="agents-switch-title">
+      <form method="dialog" class="settings">
+        <header class="settings-head">
+          <h2 id="agents-switch-title" tabindex="-1" autofocus>Agents now see what you share with them</h2>
+          <button value="close" class="icon-btn" aria-label="Close">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          </button>
+        </header>
+        <div class="stack">
+          <p class="muted">Tags no longer share notes: they only sort them. A note is <strong>shared with agents</strong> instead (Agents, in its Share), and every agent you connect sees the notes it’s on. <span id="agents-switch-who"></span></p>
+          <div class="group">
+            <ul class="pick-list" id="agents-switch-list"></ul>
+          </div>
+          <p class="muted tiny">The ones you leave unticked stay yours: agents lose them, and they get new keys. Change any of them later in its Share.</p>
+          <div class="row end">
+            <button value="close" class="small">Later</button>
+            <button type="button" id="agents-switch-go" class="primary small">Share these with agents</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Delete account (#51): says what goes, and asks to type DELETE -->
+    <dialog id="delete-dialog" aria-labelledby="delete-title">
+      <form method="dialog" class="settings">
+        <header class="settings-head">
+          <h2 id="delete-title" tabindex="-1" autofocus>Delete your account?</h2>
+          <button value="close" class="icon-btn" aria-label="Close">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          </button>
+        </header>
+        <div class="delete-body">
+          <p>This deletes, from the server and for good:</p>
+          <ul>
+            <li>all your notes, and their history</li>
+            <li>the notes you’ve shared: their links stop working for everyone</li>
+            <li>the apps you’ve connected, like Claude: they lose access</li>
+            <li>your passkeys’ sign-in, and every device’s session</li>
+          </ul>
+          <p class="muted tiny">It can’t be undone, and there’s no export yet: copy anything you want to keep first. Your passkeys stay in your password manager (iCloud Keychain, Google, 1Password…): delete them there. Server backups keep a copy until they’re replaced.</p>
+          <label class="setting-title" for="delete-confirm">Type DELETE to confirm</label>
+          <input id="delete-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          <p class="error" id="delete-error" role="alert"></p>
+        </div>
+        <div class="row end">
+          <button value="close" class="small">Cancel</button>
+          <button type="button" id="delete-go" class="small danger-fill" disabled>Delete my account</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- A note's history (#60, #340): its versions by day, each saying what it changed; the chosen
+         one as the note read then, its changes marked; Restore. On a phone: the list, then a version. -->
+    <dialog id="history-dialog" aria-labelledby="history-title">
+      <form method="dialog" class="settings">
+        <header class="settings-head">
+          <button type="button" id="history-back" class="link settings-back">‹ Versions</button>
+          <h2 id="history-title" tabindex="-1" autofocus>History</h2>
+          <span id="history-note" class="history-note"></span>
+          <button value="close" class="icon-btn" aria-label="Close">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          </button>
+        </header>
+        <div id="history-message" class="history-message" hidden></div>
+        <div id="history-body" class="history-body" hidden>
+          <nav class="history-versions" aria-label="Versions">
+            <ul id="history-list" class="history-list"></ul>
+            <p class="history-about">Plim keeps every version: one at most once an hour while you edit.</p>
+            <button type="button" id="history-forget" class="link history-forget">Forget history…</button>
+          </nav>
+          <section class="history-pane" aria-labelledby="history-when">
+            <div class="history-head">
+              <div class="history-heading">
+                <h3 id="history-when" class="history-when" tabindex="-1"></h3>
+                <p id="history-since" class="history-since"></p>
+              </div>
+              <button type="button" id="history-fold" class="ghost small" hidden>Show the whole note</button>
+            </div>
+            <!-- The version's text, its changes since the one before marked (history.js, diffLines) -->
+            <div id="history-diff" class="history-diff" role="document" aria-label="The version’s text" tabindex="-1"></div>
+            <div class="history-actions">
+              <p id="history-hint" class="history-hint"></p>
+              <button type="button" id="history-copy" class="small">Copy text</button>
+              <button type="button" id="history-restore" class="primary small">Restore this version</button>
+            </div>
+          </section>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Phones (#321): your tags, from the list's Tags row; one picked shows its notes -->
+    <dialog id="tags-dialog" class="tags-dialog" aria-labelledby="tags-dialog-title">
+      <form method="dialog" class="settings">
+        <header class="settings-head">
+          <h2 id="tags-dialog-title" tabindex="-1" autofocus>Tags</h2>
+          <button value="close" class="icon-btn" aria-label="Close">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          </button>
+        </header>
+        <ul id="tag-sheet" class="tag-list" aria-label="Tags"></ul>
+      </form>
+    </dialog>
+
+
+    <dialog id="settings" aria-labelledby="settings-title">
+      <!-- Sections on the left, the chosen one on the right; on a phone, the list,
+           then a section on its own with ← Settings (app.js showSettingsSection). -->
+      <form method="dialog" class="settings">
+        <header class="settings-head">
+          <button type="button" id="settings-back" class="link settings-back">‹ Settings</button>
+          <h2 id="settings-title" tabindex="-1" autofocus>Settings</h2>
+          <button value="close" class="icon-btn" aria-label="Close">
+            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          </button>
+        </header>
+        <div class="settings-body">
+          <nav class="settings-nav" aria-label="Settings sections">
+            <button type="button" data-section="profile"><span>Profile</span><span class="nav-sub" id="settings-nav-profile"></span></button>
+            <button type="button" data-section="editor"><span>Editor</span><span class="nav-sub">Markdown, shortcuts</span></button>
+            <button type="button" data-section="security"><span>Sign-in &amp; security</span><span class="nav-sub">Passkeys, recovery phrase, auto-lock</span></button>
+            <button type="button" data-section="connections"><span>Connections</span><span class="nav-sub" id="settings-nav-connections">None</span></button>
+            <button type="button" data-section="storage"><span>Storage</span><span class="nav-sub" id="settings-nav-storage"></span></button>
+            <button type="button" data-section="account"><span>Account</span><span class="nav-sub">Account ID, export</span></button>
+          </nav>
+
+          <div class="settings-pages">
+            <section class="settings-section" data-section="profile" aria-labelledby="settings-profile-label" hidden>
+              <h3 class="section-title" id="settings-profile-label">Profile</h3>
+              <div class="group">
+                <div class="setting stacked" id="settings-name-row">
+                  <label class="setting-title" for="settings-name">Your name</label>
+                  <div class="setting-sub">Shown next to your cursor in notes you share. Kept encrypted, like your notes. Until you set one, you’re a character from Middle-earth, the one shown in the box.</div>
+                  <input id="settings-name" maxlength="40" autocomplete="nickname" placeholder="Your name" />
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-section" data-section="editor" aria-labelledby="settings-editor-label" hidden>
+              <h3 class="section-title" id="settings-editor-label">Editor</h3>
+              <!-- Split (#302): off unless asked for, this device only (ui/reading.js) -->
+              <div class="group">
+                <div class="setting">
+                  <div>
+                    <label class="setting-title" for="settings-split">Split view</label>
+                    <div class="setting-sub">Edit and Preview side by side, as a third choice in a note's bar, on a wide screen. This device only.</div>
+                  </div>
+                  <input type="checkbox" id="settings-split" class="switch setting-actions" role="switch" />
+                </div>
+              </div>
+              <h4 class="section-label">Markdown</h4>
+              <p class="muted tiny">Notes are written in markdown: <code># Heading</code>, <code>**bold**</code>, <code>- [ ] task</code>. A note opens in the editor, its markdown as it is; Preview shows it formatted, and a click on a word there edits at that word; Split, once turned on above, shows both side by side, scrolling together (Ctrl+/ goes round them, ⌘/ on a Mac). Switching keeps your place.</p>
+              <h4 class="section-label">Shortcuts</h4>
+              <p class="muted tiny">Ctrl+B bold, Ctrl+I italic, Ctrl+E code, Ctrl+K a link (⌘ on a Mac). Ctrl+Enter ticks a task. A click in a link shows where it goes, to open or copy; Ctrl+click opens it. In a list, Enter starts the next item, Enter on an empty one ends the list, and Tab indents an item.</p>
+            </section>
+
+            <section class="settings-section" data-section="security" aria-labelledby="settings-security-label" hidden>
+              <h3 class="section-title" id="settings-security-label">Sign-in &amp; security</h3>
+              <h4 class="section-label" id="settings-passkeys-label">Passkeys</h4>
+              <p class="muted tiny">Sign in with a passkey instead of your 12 words, on any device where it syncs (iCloud Keychain, Google Password Manager, 1Password…).</p>
+              <div class="group">
+                <div id="settings-passkey-list"></div>
+                <div class="setting">
+                  <div>
+                    <div class="setting-title">Add a passkey</div>
+                    <div class="setting-sub" id="settings-passkey-sub"></div>
+                  </div>
+                  <div class="setting-actions">
+                    <button type="button" id="settings-add-passkey" class="small">Add</button>
+                  </div>
+                </div>
+              </div>
+              <p class="error" id="settings-passkey-error" role="alert"></p>
+
+              <h4 class="section-label">Recovery phrase</h4>
+              <div class="group">
+                <div class="setting">
+                  <div>
+                    <div class="setting-title">Your 12 words</div>
+                    <div class="setting-sub">They open your vault on any device, and are the only way back in if you lose your passkeys.</div>
+                  </div>
+                  <div class="setting-actions">
+                    <button type="button" id="settings-show-phrase" class="small">Show</button>
+                  </div>
+                </div>
+                <div class="setting stacked" id="settings-phrase" hidden>
+                  <ol id="settings-phrase-words" class="words"></ol>
+                  <p class="muted tiny">Write them down in order and keep them somewhere safe. Anyone with them can read your notes.</p>
+                  <div class="row end">
+                    <button type="button" id="settings-phrase-saved" class="small primary">I’ve saved it</button>
+                  </div>
+                </div>
+                <div class="setting">
+                  <div>
+                    <div class="setting-title">Change recovery phrase</div>
+                    <div class="setting-sub">Get a new 12-word phrase. Your notes are re-encrypted, and the old phrase and your passkeys stop working everywhere.</div>
+                    <div class="setting-sub warn" id="settings-rotate-offline" hidden>Needs a connection.</div>
+                  </div>
+                  <div class="setting-actions">
+                    <button type="button" id="settings-rotate" class="small">Change…</button>
+                  </div>
+                </div>
+              </div>
+
+              <h4 class="section-label" id="settings-device-label">This device</h4>
+              <div class="group">
+                <div class="setting">
+                  <div>
+                    <label class="setting-title" for="settings-autolock">Auto-lock</label>
+                    <div class="setting-sub">Lock after inactivity</div>
+                  </div>
+                  <select id="settings-autolock" class="setting-actions">
+                    <option value="5">5 minutes</option>
+                    <option value="15">15 minutes</option>
+                    <option value="60">1 hour</option>
+                    <option value="0">Never</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <!-- Connections (#369, #514, ui/connections.js): apps connected to the notes you share with agents -->
+            <section class="settings-section" data-section="connections" aria-labelledby="settings-connections-label" hidden>
+              <div id="connections-list-view">
+                <h3 class="section-title" id="settings-connections-label">Connections</h3>
+                <p class="setting-sub">Apps that read and edit the notes you share with agents.</p>
+                <div class="group" id="connections-list"></div>
+                <button type="button" id="connect-another" class="small add-more" aria-expanded="false" aria-controls="connections-none">+ Connect an app</button>
+                <p class="setting-sub" id="connections-separate">Each one is separate (claude.ai and its apps, Claude Code on each computer): disconnect one and the others keep working.</p>
+                <div class="group" id="connections-none">
+                  <div class="setting stacked">
+                    <div class="setting-title" id="connect-howto-title">Connect Claude</div>
+                    <ol class="setting-sub how-to" id="connect-howto">
+                      <li>In Claude (claude.ai, or its apps), open <strong>Customize → Connectors</strong> and choose <strong>Add custom connector</strong>.</li>
+                      <li>Name it Plim, with the address <code id="connector-address" class="address"></code> <button type="button" id="connector-copy" class="link small">Copy</button></li>
+                      <li>Choose <strong>Connect</strong>. Plim asks you to confirm here, then it appears on this page.</li>
+                    </ol>
+                    <div class="setting-sub" id="connect-howto-none" hidden>This Plim has no connector set up yet, so apps can’t connect over the web. Whoever runs it can add one (README: “Connecting Claude over the web”).</div>
+                    <div class="setting-sub">It sees the notes you share with agents, and nothing else. Claude Code connects the same way: <code>claude mcp add --transport http plim</code> and this address.</div>
+                  </div>
+                </div>
+              </div>
+              <div id="connection-page" hidden>
+                <button type="button" id="connection-back" class="link small settings-sub-back">‹ Connections</button>
+                <div class="connection-head">
+                  <span id="connection-badge"></span>
+                  <div class="connection-who">
+                    <div class="connection-name-row">
+                      <h3 class="section-title" id="connection-name"></h3>
+                      <button type="button" id="connection-rename" class="icon-btn" aria-label="Rename" title="Rename"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="M14 6l4 4" /></svg></button>
+                    </div>
+                    <div class="setting-sub" id="connection-meta"></div>
+                    <div class="setting-sub connection-used" id="connection-used"></div>
+                  </div>
+                  <!-- (Up here, beside its name: below "What it did", which grows, it moved under the finger, #442.) -->
+                  <button type="button" id="connection-disconnect" class="link small danger connection-disconnect">Disconnect…</button>
+                </div>
+                <!-- What it sees (#514, ui/connections.js): the notes shared with agents, as every agent does -->
+                <div class="group">
+                  <div class="setting stacked">
+                    <div class="setting-title">Sees what you share with agents</div>
+                    <div class="setting-sub" id="connection-sees"></div>
+                  </div>
+                </div>
+                <p class="setting-sub" id="connection-status" aria-live="polite"></p>
+                <h4 class="section-label connection-activity-head">What it did <button type="button" id="connection-activity-all" class="link small" hidden>Show all</button></h4>
+                <div id="connection-activity" class="activity"></div>
+                <p class="error" id="connection-error" role="alert"></p>
+              </div>
+            </section>
+
+            <section class="settings-section" data-section="storage" aria-labelledby="settings-storage-label" hidden>
+              <h3 class="section-title" id="settings-storage-label">Storage</h3>
+              <div class="group">
+                <div class="setting stacked">
+                  <div class="setting-title">Used</div>
+                  <div class="meter" title="Encrypted storage used"><div id="meter-fill"></div></div>
+                  <div class="setting-sub" id="storage-text"></div>
+                  <div class="setting-sub" id="storage-history" hidden></div>
+                  <div class="setting-sub">Your notes, their history and your shared notes, encrypted. Deleted notes count until they're deleted for good. Every version of a note is kept; if your space runs short, the oldest versions go first, so a note can always be saved.</div>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-section" data-section="account" aria-labelledby="settings-account-label" hidden>
+              <h3 class="section-title" id="settings-account-label">Account</h3>
+              <div class="group">
+                <div class="setting stacked">
+                  <div class="setting-title">Account ID</div>
+                  <code id="settings-account"></code>
+                </div>
+              </div>
+              <!-- Export (#47, ui/export.js): every note as a Markdown file, in one zip, made on this device -->
+              <div class="group">
+                <div class="setting">
+                  <div>
+                    <div class="setting-title">Export all notes</div>
+                    <div class="setting-sub">Every note as a Markdown file, in one zip, with its tags and dates. Made on this device. The files aren’t encrypted: keep them somewhere safe.</div>
+                    <div class="setting-sub" id="settings-export-status" role="status" hidden></div>
+                  </div>
+                  <div class="setting-actions">
+                    <button type="button" id="settings-export" class="small">Export</button>
+                  </div>
+                </div>
+              </div>
+              <div class="group">
+                <div class="setting">
+                  <div>
+                    <div class="setting-title">Delete account</div>
+                    <div class="setting-sub">Your notes, their history and the notes you’ve shared are deleted from the server, for good.</div>
+                    <div class="setting-sub warn" id="settings-delete-offline" hidden>Needs a connection.</div>
+                  </div>
+                  <div class="setting-actions">
+                    <button type="button" id="settings-delete" class="small danger">Delete…</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

@@ -1,0 +1,126 @@
+{
+ "about": "Searching notes (#24): every word in a note, whatever its case or accents. web/core/search.js matchNote and the terminal client's search.rs must agree on each: which notes match, how many places, whether the title has every word, and the lines shown with their matches in [brackets].",
+ "cases": [
+  {
+   "query": "tram",
+   "title": "Trip to Lisbon",
+   "text": "# Trip to Lisbon\n\n- [ ] Reserve the **tram 28** tour\nDay one is Alfama.\nDay two, a tram… ferry to Cacilhas.\n- Tram again\n- Pastéis de Belém",
+   "match": {
+    "count": 3,
+    "inTitle": false,
+    "lines": [
+     "- [ ] Reserve the **[tram] 28** tour",
+     "Day two, a [tram]… ferry to Cacilhas."
+    ]
+   }
+  },
+  {
+   "query": "TRAM pasteis",
+   "title": "Trip to Lisbon",
+   "text": "# Trip to Lisbon\n\n- [ ] Reserve the **tram 28** tour\nDay one is Alfama.\nDay two, a tram… ferry to Cacilhas.\n- Tram again\n- Pastéis de Belém",
+   "match": {
+    "count": 4,
+    "inTitle": false,
+    "lines": [
+     "- [ ] Reserve the **[tram] 28** tour",
+     "Day two, a [tram]… ferry to Cacilhas."
+    ]
+   }
+  },
+  {
+   "query": "tram sintra",
+   "title": "Trip to Lisbon",
+   "text": "# Trip to Lisbon\n\n- [ ] Reserve the **tram 28** tour\nDay one is Alfama.\nDay two, a tram… ferry to Cacilhas.\n- Tram again\n- Pastéis de Belém",
+   "match": null
+  },
+  {
+   "query": "lisbon trip",
+   "title": "Trip to Lisbon",
+   "text": "# Trip to Lisbon\n\n- [ ] Reserve the **tram 28** tour\nDay one is Alfama.\nDay two, a tram… ferry to Cacilhas.\n- Tram again\n- Pastéis de Belém",
+   "match": {
+    "count": 2,
+    "inTitle": true,
+    "lines": []
+   }
+  },
+  {
+   "query": "cafe brulee",
+   "title": "Desserts",
+   "text": "Desserts\n\nCafé 😀 crème Brûlée, CAFÉ",
+   "match": {
+    "count": 3,
+    "inTitle": false,
+    "lines": [
+     "[Café] 😀 crème [Brûlée], [CAFÉ]"
+    ]
+   }
+  },
+  {
+   "query": "istanbul",
+   "title": "Places",
+   "text": "Places\n\n- İstanbul in May",
+   "match": {
+    "count": 1,
+    "inTitle": false,
+    "lines": [
+     "- [İstanbul] in May"
+    ]
+   }
+  },
+  {
+   "query": "tramway",
+   "title": "Words",
+   "text": "Words\n\ntramway trams",
+   "match": {
+    "count": 1,
+    "inTitle": false,
+    "lines": [
+     "[tramway] trams"
+    ]
+   }
+  },
+  {
+   "query": "tram",
+   "title": "T",
+   "text": "T\nword word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word the tram more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more more ",
+   "match": {
+    "count": 1,
+    "inTitle": false,
+    "lines": [
+     "… word word word word word the [tram] more more more more more more more more more more more more more more more more more more more more more …"
+    ]
+   }
+  },
+  {
+   "query": "squat",
+   "title": "Training 2026",
+   "text": "Training 2026\n#gym\n\nSquat · 135 lb × 12\n- Front squat 3×8",
+   "match": {
+    "count": 2,
+    "inTitle": false,
+    "lines": [
+     "[Squat] · 135 lb × 12",
+     "- Front [squat] 3×8"
+    ]
+   }
+  },
+  {
+   "query": "#gym",
+   "title": "Training 2026",
+   "text": "Training 2026\n#gym\n\nSquat · 135 lb × 12",
+   "match": {
+    "count": 1,
+    "inTitle": false,
+    "lines": [
+     "[#gym]"
+    ]
+   }
+  },
+  {
+   "query": "   ",
+   "title": "Anything",
+   "text": "Anything\n\nat all",
+   "match": null
+  }
+ ]
+}

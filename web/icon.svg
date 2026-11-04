@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" fill="#1a1a19"/>
+  <!-- Plim's π: a bar and two legs, square-ended, on a square ink tile (the app's own corners: none). -->
+  <g fill="none" stroke="#fbfbfa" stroke-width="6.5" stroke-linecap="square">
+    <path d="M17 22H47"/>
+    <path d="M26 22V46"/>
+    <path d="M38 22V46"/>
+  </g>
+</svg>

@@ -1,0 +1,13 @@
+{
+  "about": "What a connection may do with a note (#514): read and edit it if it's shared with agents (place 'ai'), else nothing, whatever its tags. The same answers from the Rust rule (crates/plim-cli/src/grants.rs) and the app's (web/core/connections-sync.js roleFor). role: 'edit' or null.",
+  "cases": [
+    { "tags": [], "place": "ai", "role": "edit", "why": "shared with agents" },
+    { "tags": ["health/knee"], "place": "ai", "role": "edit" },
+    { "tags": ["gym"], "place": "ai", "role": "edit", "why": "any tags: they're only topics" },
+    { "tags": [], "place": null, "role": null, "why": "the user's alone" },
+    { "tags": ["gym"], "place": null, "role": null, "why": "a tag shares nothing" },
+    { "tags": ["claude/amber-fox"], "place": null, "role": null, "why": "nor a connection's old own tag" },
+    { "tags": ["ai"], "place": null, "role": null, "why": "nor the prototype's #ai" },
+    { "tags": ["gym"], "place": "elsewhere", "role": null, "why": "a place it doesn't know: the user's" }
+  ]
+}

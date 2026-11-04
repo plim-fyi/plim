@@ -1,0 +1,29 @@
+# web/vendor/ must be exactly what tools/vendor builds from its pinned versions
+# (tools/vendor/README.md): no hand edits, nothing out of date.
+name: Vendored JavaScript
+
+on:
+  pull_request:
+    paths: ['tools/vendor/**', 'web/vendor/**', '.github/workflows/vendor.yml']
+  push:
+    branches: [main]
+    paths: ['tools/vendor/**', 'web/vendor/**', '.github/workflows/vendor.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/vendor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/vendor/package-lock.json
+      - run: npm ci
+      - run: npm run check

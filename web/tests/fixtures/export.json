@@ -1,0 +1,43 @@
+{
+  "about": "Export (#47): web/core/export.js and crates/plim-cli/src/export.rs pass the same cases. base: [a note's title, the start of its file name]. paths: [notes as {id, title, created, deleted}, each id's file]. text: [a note's text, {created, updated, id, shared} (times in ms), its file's text].",
+  "base": [
+    ["Leg day", "Leg day"],
+    ["  Lisbon,   18–21 October  ", "Lisbon, 18–21 October"],
+    ["Q4: planning / budget", "Q4- planning - budget"],
+    ["What? \"Really\" <yes> | *no*", "What Really yes no"],
+    ["Notes...", "Notes"],
+    ["...hidden", "hidden"],
+    ["tab\there\nnewline", "tab here newline"],
+    ["", "Untitled"],
+    ["???", "Untitled"],
+    ["CON", "CON_"],
+    ["com1", "com1_"],
+    ["Café", "Café"],
+    ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+    ["ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé", "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"]
+  ],
+  "paths": [
+    [
+      [
+        {"id": "b", "title": "Leg day", "created": 2000, "deleted": false},
+        {"id": "a", "title": "Leg day", "created": 1000, "deleted": false},
+        {"id": "c", "title": "leg DAY", "created": 3000, "deleted": false},
+        {"id": "d", "title": "Leg day", "created": 500, "deleted": true},
+        {"id": "e", "title": "Leg day (2)", "created": 4000, "deleted": false},
+        {"id": "f", "title": "", "created": 100, "deleted": false},
+        {"id": "g", "title": "", "created": 100, "deleted": false}
+      ],
+      {"a": "Leg day.md", "b": "Leg day (2).md", "c": "leg DAY (3).md", "d": "deleted/Leg day.md", "e": "Leg day (2) (2).md", "f": "Untitled.md", "g": "Untitled (2).md"}
+    ]
+  ],
+  "text": [
+    ["---\ntitle: Leg day\ntags: [gym]\n---\nsquat 5x5", {"created": 1793600000000, "updated": 1793686400000, "id": "0f5c2c8e-1b2a-4c3d-9e8f-001122334455", "shared": false},
+      "---\ntitle: Leg day\ntags: [gym]\ncreated: 2026-11-02T06:13:20Z\nupdated: 2026-11-03T06:13:20Z\nid: 0f5c2c8e-1b2a-4c3d-9e8f-001122334455\n---\nsquat 5x5"],
+    ["Just a line, no block", {"created": 1793600000000, "updated": 0, "id": "n1", "shared": true},
+      "---\ncreated: 2026-11-02T06:13:20Z\nid: n1\nshared: true\n---\nJust a line, no block"],
+    ["---\ntitle: Old\ncreated: 1999-01-01\nid: wrong\n---\n", {"created": 1793600000000, "updated": 1793686400000, "id": "right", "shared": false},
+      "---\ntitle: Old\ncreated: 2026-11-02T06:13:20Z\nid: right\nupdated: 2026-11-03T06:13:20Z\n---\n"],
+    ["", {"created": 0, "updated": 0, "id": "empty", "shared": false},
+      "---\nid: empty\n---\n"]
+  ]
+}

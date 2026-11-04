@@ -1,0 +1,57 @@
+{
+ "about": "A version's text as it's encrypted (#60): MAGIC (NUL 'TZ' 1) then raw deflate of the UTF-8; none: the text as it is. One that names its writer (#505): NUL 'TZ' 2, then raw deflate of the writer's JSON (its length first, u32 big-endian) and the text; `writer`: who it says wrote it (none: it doesn't, or can't be read). web/core/history.js unpackVersion and plim-core version.rs unpack_version must both read each.",
+ "cases": [
+  {
+   "by": "web",
+   "text": "Trip to Lisbon\n\n- Tram 28 early, before the crowds\n- Pastéis de Belém",
+   "packed": "AFRaAQspyixQKMlX8MksTsrP4+LSVQgpSsxVMLJQSE0syqnUUUhKTcsvSlUoyUhVSC7KL08p5tJVCEgsLjm8MrNYISVVwSk15/DKXAA="
+  },
+  {
+   "by": "web",
+   "text": "",
+   "packed": "AFRaAQMA"
+  },
+  {
+   "by": "web",
+   "text": "Café ☕ 日本語 🚆 — every script\na long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line a long line ",
+   "packed": "AFRaAXNOTDu8UuHRjKkKz6YvfTZnzYtV8xQ+zJ/VpvCoYYpCallqUaVCcXJRZkEJV6JCTn5eukJOZl6qwih7+LEB"
+  },
+  {
+   "by": "terminal client",
+   "text": "Groceries\n\n- oat milk\n- lemons\n- sourdough\n- Café crème",
+   "packed": "AFRaAQE5AMb/R3JvY2VyaWVzCgotIG9hdCBtaWxrCi0gbGVtb25zCi0gc291cmRvdWdoCi0gQ2Fmw6kgY3LDqG1l"
+  },
+  {
+   "by": "saved before versions were packed",
+   "text": "Reading list\n\n- Piranesi",
+   "packed": "UmVhZGluZyBsaXN0CgotIFBpcmFuZXNp"
+  },
+  {
+   "by": "web",
+   "text": "Trip to Lisbon\n\n- Tram 28 early\n- Pastéis de Belém ☕",
+   "writer": {
+    "name": "You",
+    "connection": "MacBook",
+    "session": "quiet river",
+    "sid": "41d07a3b9f2c"
+   },
+   "packed": "AFRaAiXIQQrCMBAAwJzzimXPLWgV1B57VhDpxWOarLDYZDVJBRGfIfiFvqM/8SUiznGUUocHBuMJazzKgAVaCYFsZglY487YRuSMBSZK6X/XgSlD5BvF37PDGpdzN1uZRbc5VRafbeQLZIEtp06C1iW00Xio1kAm9nddwt6kPI2cwBE01E+jh8/79QU="
+  },
+  {
+   "by": "terminal client",
+   "packed": "AFRaAiXIywkCMRAA0JxTxTBnBX8g7tUGPNjA7GQCgc2MbCIKYhmCLViHnViJWfb6nHPnByplwQ6PA12D4ALZVIVrMm1a02iQ+dK8SCkzUu5lhGj3SVNocogb3q3Dak/bHp+ngdT7JZhKB0zx+4Hf+9Wg3sz/AQ==",
+   "text": "Plan\n\n- one: café ☕\n- two\n",
+   "writer": {
+    "connection": "tiro mcp",
+    "name": "Claude",
+    "session": "amber fox",
+    "sid": "9f2c41d07a3b"
+   }
+  },
+  {
+   "by": "a writer that can't be read (left out; the text still reads)",
+   "text": "A note whose writer is unreadable",
+   "packed": "AFRaAmNgYGCtzssvSHVUyMsvSVUoz8gvTlUoL8osSS1SyCxWKM0rSk1MSUzKSQUA"
+  }
+ ]
+}

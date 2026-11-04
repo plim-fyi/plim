@@ -1,0 +1,62 @@
+# The terminal client for macOS: one universal binary (Apple silicon and Intel), built on GitHub's
+# Mac runners for each release and attached to it as plim-macos, its line added to SHA256SUMS.
+# Unsigned: run from a terminal it works as is; downloaded through a browser, macOS asks once
+# (System Settings → Privacy & Security → Open Anyway), or: xattr -d com.apple.quarantine plim
+name: macOS binary
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The release to build for (e.g. v0.20.0)"
+        required: true
+
+permissions:
+  contents: write # (to attach the binary to the release)
+
+jobs:
+  build:
+    runs-on: macos-14
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Rust as pinned in mise.toml, for both Macs
+        run: |
+          v=$(sed -n 's/^rust = "\(.*\)"$/\1/p' mise.toml)
+          rustup toolchain install "$v" --profile minimal --target aarch64-apple-darwin,x86_64-apple-darwin
+          rustup default "$v"
+      - uses: Swatinem/rust-cache@v2
+      - name: Tests on macOS
+        run: cargo test --locked -p plim-cli -p plim-core
+      - name: Build both, then one universal binary
+        run: |
+          PLIM_COMMIT=$(git rev-parse --short HEAD)
+          export PLIM_COMMIT
+          for t in aarch64-apple-darwin x86_64-apple-darwin; do
+            cargo build --release --locked -p plim-cli --target "$t"
+          done
+          mkdir -p dist
+          lipo -create -output dist/plim-macos \
+            target/aarch64-apple-darwin/release/plim target/x86_64-apple-darwin/release/plim
+          lipo -info dist/plim-macos
+      - name: It is the release it says
+        run: |
+          got=$(dist/plim-macos --version)
+          echo "$got"
+          [[ $got == "plim ${TAG#v} ("* ]] || { echo "expected plim ${TAG#v}, got: $got"; exit 1; }
+          lipo -archs dist/plim-macos | grep -q arm64 && lipo -archs dist/plim-macos | grep -q x86_64
+      - name: Attach to the release, and to SHA256SUMS
+        run: |
+          cd dist
+          gh release download "$TAG" --pattern SHA256SUMS --clobber || touch SHA256SUMS
+          grep -v ' plim-macos$' SHA256SUMS > sums || true
+          shasum -a 256 plim-macos >> sums
+          mv sums SHA256SUMS
+          cat SHA256SUMS
+          gh release upload "$TAG" plim-macos SHA256SUMS --clobber

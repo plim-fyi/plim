@@ -1,0 +1,26 @@
+[package]
+name = "plim-server"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[dependencies]
+axum = { version = "0.8.9", features = ["ws"] }
+base64 = "0.23.1"
+hex = "0.4.3"
+rand = "0.8"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+plim-core = { version = "0.1.0", path = "../crates/plim-core" }
+tokio = { version = "1.53.1", features = ["full"] }
+tower = { version = "0.5.3", features = ["util"] }
+tower-http = { version = "0.7.1", features = ["fs", "set-header", "limit"] }
+
+[dev-dependencies]
+ed25519-dalek = "3.0.0"
+futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
+http-body-util = "0.1.5"
+tokio-tungstenite = "0.29"
+tower = { version = "0.5.3", features = ["util"] }

@@ -1,0 +1,39 @@
+# The tests on every pull request and every change to main: the Rust workspace (server, shared
+# crypto, terminal client) and the web app's own (including Rust interop through the fixtures).
+# The browser and terminal checks (tools/screenshots) aren't here: they need Chromium, tmux and
+# minutes; run them yourself for UI changes (README: Test).
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust as pinned in mise.toml
+        run: |
+          v=$(sed -n 's/^rust = "\(.*\)"$/\1/p' mise.toml)
+          rustup toolchain install "$v" --profile minimal
+          rustup default "$v"
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --locked
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node web/tests/run.mjs

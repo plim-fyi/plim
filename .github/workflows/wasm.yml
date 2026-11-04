@@ -1,0 +1,25 @@
+# web/wasm/plim.wasm must be exactly what tools/wasm/build.sh builds from crates/plim-wasm
+# (tools/wasm/README.md), with the Rust pinned in mise.toml: no stale or hand-built module.
+name: The web app's WebAssembly
+
+on:
+  pull_request:
+    paths: ['crates/plim-wasm/**', 'crates/plim-core/**', 'Cargo.toml', 'Cargo.lock', 'mise.toml', 'tools/wasm/**', 'web/wasm/**', '.github/workflows/wasm.yml']
+  push:
+    branches: [main]
+    paths: ['crates/plim-wasm/**', 'crates/plim-core/**', 'Cargo.toml', 'Cargo.lock', 'mise.toml', 'tools/wasm/**', 'web/wasm/**', '.github/workflows/wasm.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust as pinned in mise.toml
+        run: |
+          v=$(sed -n 's/^rust = "\(.*\)"$/\1/p' mise.toml)
+          rustup toolchain install "$v" --profile minimal --target wasm32-unknown-unknown
+          rustup default "$v"
+      - run: tools/wasm/build.sh --check

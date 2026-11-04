@@ -1,0 +1,22 @@
+# The connector (#369): Plim as a remote MCP server, `plim mcp --http`, as a user service.
+# Edit --server and --public-url, then:
+#   mkdir -p ~/.config/systemd/user && cp docs/plim-mcp.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now plim-mcp
+#   loginctl enable-linger $USER   # (once: runs without a login session)
+# Then publish its port under the connector's hostname in the tunnel (DEPLOY.md), and set
+# PLIM_CONNECTOR_URL to that address on the Plim server. After `install.sh` puts a new `plim`:
+#   systemctl --user restart plim-mcp
+# (Each PLIM_ setting is also read by its name before the rename, TIRO_.)
+[Unit]
+Description=Plim connector (plim mcp --http)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=%h/.local/bin/plim mcp --http 127.0.0.1:3010 --server https://notes.example.com --public-url https://mcp-notes.example.com
+Environment=PLIM_CONNECTOR_SECRET_FILE=%h/.local/share/plim/connector.key
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

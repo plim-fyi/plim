@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Plim Admin</title>
+    <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="admin.css" />
+    <script type="module" src="admin.js"></script>
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand"><img class="logo" src="icon.svg" alt="" />Plim <span class="brand-sub">Admin</span></div>
+      <span class="badge" title="Nothing on this page can change data">Read-only</span>
+      <span id="uptime" class="muted small"></span>
+      <span class="spacer"></span>
+      <span id="updated" class="muted small" aria-live="polite"></span>
+      <button id="refresh" type="button">Refresh</button>
+    </header>
+
+    <main id="main" class="first-load">
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <section aria-labelledby="h-overview">
+        <h2 id="h-overview">Overview</h2>
+        <div id="tiles" class="tiles"></div>
+      </section>
+
+      <section aria-labelledby="h-activity">
+        <div class="section-head">
+          <h2 id="h-activity">Activity</h2>
+          <div class="segmented" role="group" aria-label="Date range">
+            <button type="button" data-days="7">7 days</button>
+            <button type="button" data-days="30" aria-pressed="true">30 days</button>
+            <button type="button" data-days="90">90 days</button>
+          </div>
+        </div>
+        <div class="charts">
+          <figure class="card chart" id="c-signups">
+            <figcaption><h3>New accounts per day</h3><p class="muted small" data-sub></p></figcaption>
+            <div class="plot"></div>
+          </figure>
+          <figure class="card chart" id="c-updates">
+            <figcaption><h3>Private-note updates per day</h3><p class="muted small" data-sub></p></figcaption>
+            <div class="plot"></div>
+          </figure>
+          <figure class="card chart" id="c-shared">
+            <figcaption><h3>Shared-note updates per day</h3><p class="muted small" data-sub></p></figcaption>
+            <div class="plot"></div>
+          </figure>
+          <figure class="card chart" id="c-versions">
+            <figcaption><h3>Versions saved per day</h3><p class="muted small" data-sub></p></figcaption>
+            <div class="plot"></div>
+          </figure>
+          <figure class="card chart" id="c-writers">
+            <figcaption><h3>Accounts writing per day</h3><p class="muted small" data-sub></p></figcaption>
+            <div class="plot"></div>
+          </figure>
+          <figure class="card chart" id="c-storage">
+            <figcaption><h3>Accounts by storage used</h3><p class="muted small" data-sub></p></figcaption>
+            <div class="plot"></div>
+          </figure>
+        </div>
+      </section>
+
+      <section aria-labelledby="h-health">
+        <h2 id="h-health">API health <span class="muted small">since the server started</span></h2>
+        <div id="health" class="tiles compact"></div>
+      </section>
+
+      <section aria-labelledby="h-accounts">
+        <div class="section-head">
+          <h2 id="h-accounts">Accounts <span id="accounts-count" class="muted small"></span></h2>
+        </div>
+        <div class="card table-wrap">
+          <table id="accounts" class="data">
+            <thead>
+              <tr>
+                <th scope="col">Account</th>
+                <th scope="col"><button type="button" data-sort="created">Created</button></th>
+                <th scope="col"><button type="button" data-sort="storage">Storage</button></th>
+                <th scope="col" class="num">Docs</th>
+                <th scope="col" class="num">Updates</th>
+                <th scope="col" class="num" title="Shared notes it owns whose links work">Shared</th>
+                <th scope="col" class="num" title="Versions kept of its notes, private and shared (History)">Versions</th>
+                <th scope="col"><button type="button" data-sort="active">Last write</button></th>
+                <th scope="col">Last login</th>
+                <th scope="col" class="num" title="Vault key version — above 1 means the recovery phrase was changed">Key</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="muted small">Only the first 8 characters of each account ID are shown. Note contents are end-to-end encrypted and never visible here.</p>
+      </section>
+
+      <section aria-labelledby="h-config">
+        <h2 id="h-config">Configuration</h2>
+        <dl id="config" class="card config"></dl>
+      </section>
+    </main>
+
+    <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+  </body>
+</html>

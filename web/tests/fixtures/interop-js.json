@@ -1,0 +1,47 @@
+{
+  "connection": {
+    "secret": "6666666666666666666666666666666666666666666666666666666666666666",
+    "pubkey": "4b8916b846155cdd78f3619dd924ddaf246ab4285393971f90c93e85bcc08c7d",
+    "pubkey_hash": "44bc020c138e67cac75adabd2b7468f0fdfe45e53019916e700fae94d1541caa",
+    "list_holder_id": "6546b8d4556d2b86500550f4486139e1",
+    "list_holder_secret": "555c6704d2ca1e1183913711cef054ccdaa8e0a70a523ca46a3e14be169071ae",
+    "holder_id": "abcdefabcdefabcdefabcdefabcdefab",
+    "holder_secret": "5aa9a7a271cd803edde6171b9f3eb6c0d035f8c9cc85cecaf779b9761d1fdb02"
+  },
+  "holder": {
+    "secret": "3333333333333333333333333333333333333333333333333333333333333333",
+    "token": "75f198d5e61d135bce24508483136fdbf95c8bd6f1a2e0feca6bf26e16e2fd85",
+    "share_id": "ffeeddccbbaa99887766554433221100",
+    "share_seed": "4444444444444444444444444444444444444444444444444444444444444444",
+    "edit": {
+      "holder_id": "abcdefabcdefabcdefabcdefabcdefab",
+      "role": "edit",
+      "nonce": "UgD/Gme6oMxmSWjq",
+      "ciphertext": "6IipMqBet8xhtOGEr6DMv6vspJc+jzTpH7atFdEawG+EkEEZ2IDFtUQh8euyA+7g5g=="
+    },
+    "read": {
+      "holder_id": "0000000011111111222222223333333a",
+      "role": "read",
+      "nonce": "h4i8PvpSZdRiMvUs",
+      "ciphertext": "9p1Wi4lqvFt1Q5XtZxLAGe5vOtpUPHwDaL/4XFwExDYB4jkZC80l25BSphTw76TiiD/ZcsEvPCF5GJVxRQhF6M4B788BqBImenMxN/o+qgzx"
+    }
+  },
+  "phrase": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+  "pubkey_hash": "19848ca26f33eb49c3c0b4e62dd7c3ef9621e2af7e74ff3377088a87ea2fb602",
+  "account_id": "aabbccddeeff00112233445566778899",
+  "doc_id": "3f1c2a9e-0000-4000-8000-000000000001",
+  "vault_key": "1111111111111111111111111111111111111111111111111111111111111111",
+  "keyring": {
+    "key_version": 1,
+    "nonce": "Q6JiOSi4ZIm9k0lm",
+    "wrapped": "mV0npcJI0kEjzLBb4GWC6QuE3z0aJ/tFNcrFLfrKmq1GYiQ7oLXu8hbeiepx/FCQ",
+    "sig": "YAPRaueIss8wblR46r2Op3NBp/r+akfNshED7ZRby08BDxM4YPqi2DIykInUtqZ7QKMd2/8P1zXCwLowVfnzBA=="
+  },
+  "update": {
+    "key_version": 1,
+    "nonce": "09SaZvMqB17+kcF1",
+    "ciphertext": "ZLOZQ22mZ8rvrjpGBKDhzU97WlOPjm4x023CPbMFjighk8zBMfaia8VFy3rt0SDLpjTNsTl/XDrrwUXfnGhNHgNPLJAEyk1EoWpOJeF/HyqnZs4Pb1idJII+Mavxou2lh8PoGM/056cttcmu6A0bC7xUi+ygOHvXjg=="
+  },
+  "text": "hello from JS — ünïcödé ✓",
+  "title": "JS title"
+}

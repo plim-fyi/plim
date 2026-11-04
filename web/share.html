@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Filled in by the server on each load: lets the editor's own <style> through the CSP. -->
+    <meta name="style-nonce" content="" />
+    <!-- A shared note: nothing about it in link previews or search engines. -->
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Shared note — Plim</title>
+    <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+    <!-- First: if the modules fail, it says so instead of a blank page (#134) -->
+    <script src="boot.js"></script>
+    <script type="module" src="guest.js"></script>
+  </head>
+  <body>
+    <noscript>This shared note needs JavaScript: it's decrypted in your browser.</noscript>
+    <main class="guest">
+      <!-- Like the app's note bar: Plim, the note's title, who's here, Add to my notes, and one ⋮
+           (with the live light) for the rest. On phones: the logo, the title centred, initials, ⋯. -->
+      <header class="guest-head">
+        <a class="brand small" href="/"><img class="logo" src="icon.svg" alt="" /><span class="brand-name">Plim</span></a>
+        <span class="guest-sep" aria-hidden="true"></span>
+        <!-- The note's first line (on the page only: the tab's title stays "Shared note — Plim") -->
+        <div id="guest-title" class="note-title"></div>
+        <span id="guest-view-only" class="view-pill" hidden>
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" /><circle cx="8" cy="8" r="2" /></svg>View only
+        </span>
+        <span id="guest-status" class="status-text" role="status"></span>
+        <span class="grow"></span>
+        <!-- Who else is here -->
+        <div id="presence" class="presence" aria-label="Also here" hidden></div>
+        <button type="button" id="guest-add" class="small add-btn" hidden>
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>Add to my notes
+        </button>
+        <!-- Preview (#302, ui/reading.js): a phone's toggle; elsewhere Edit / Preview -->
+        <button type="button" id="note-preview" class="small icon-only view-toggle" aria-pressed="false" aria-label="Preview" title="Preview" hidden>
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></svg>
+        </button>
+        <div id="note-mode" class="view-switch" role="radiogroup" aria-label="View" hidden>
+          <button type="button" role="radio" data-mode="edit" aria-checked="true" title="Edit (Ctrl+/)">Edit</button>
+          <button type="button" role="radio" data-mode="split" aria-checked="false" title="Split: the markdown and the page side by side">Split</button>
+          <button type="button" role="radio" data-mode="preview" aria-checked="false" title="Preview (Ctrl+/)">Preview</button>
+        </div>
+        <button type="button" id="guest-more" class="small icon-only" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false" hidden>
+          <!-- ⋮ on desktop, ⋯ on phones, as in the app (#197) -->
+          <svg class="icon dots-down" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="3.5" r=".6" /><circle cx="8" cy="8" r=".6" /><circle cx="8" cy="12.5" r=".6" /></svg>
+          <svg class="icon dots-across" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r=".6" /><circle cx="8" cy="8" r=".6" /><circle cx="12.5" cy="8" r=".6" /></svg>
+        </button>
+      </header>
+      <!-- ⋮ (⋯ on phones): what you can do here (and whether it's live), your name; on phones, Add to my notes -->
+      <div id="guest-menu" class="menu" role="menu" hidden>
+        <div class="menu-people"><span id="guest-mode" class="live-light" hidden></span></div>
+        <label class="menu-name" for="guest-name">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.5" r="2.5" /><path d="M3 14c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5" /></svg>Your name
+          <input id="guest-name" class="guest-name" maxlength="40" autocomplete="nickname" placeholder="Your name" aria-label="Your name, shown to others here" hidden />
+        </label>
+        <div class="menu-sep mobile-only" role="separator"></div>
+        <button type="button" id="guest-menu-add" class="mobile-only" role="menuitem">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>Add to my notes
+        </button>
+      </div>
+      <div id="guest-message" class="guest-message" role="alert" hidden>
+        <h2 id="guest-message-title"></h2>
+        <p id="guest-message-text" class="muted"></p>
+      </div>
+      <!-- The editor, and Preview: the note as a page; side by side in Split (#302, ui/reading.js) -->
+      <div id="note-body" class="note-body">
+        <div id="editor" class="guest-editor" hidden></div>
+        <div id="reading" class="reading" hidden></div>
+      </div>
+      <!-- The server has a different version of Plim than this page (#134) -->
+      <div id="update-banner" class="banner info" role="status" hidden>
+        <div>
+          <strong>Plim was updated.</strong>
+          <p>Reload to get the new version. What you wrote is saved.</p>
+        </div>
+        <button type="button" id="update-reload" class="small primary">Reload</button>
+      </div>
+      <!-- A change not signed with the note's key (#77) -->
+      <div id="forged-banner" class="banner" role="alert" hidden>
+        <div>
+          <strong>Plim ignored a change to this note that wasn’t made with its edit link.</strong>
+          <p>The server should have refused it. It may have been changed to let someone without an edit link write to the note. The note stays encrypted, and real edits still arrive.</p>
+        </div>
+        <button type="button" id="forged-ack" class="small">OK</button>
+      </div>
+    </main>
+  </body>
+</html>

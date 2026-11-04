@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+# The terminal client, `plim`, as one static binary (musl) that runs on any x86-64 Linux,
+# whatever its glibc. Nothing to run: the image holds only the binary, to copy out:
+#
+#   podman build -f Containerfile.cli --output type=local,dest=dist/ .   # → dist/plim
+#
+# (A release also passes --build-arg PLIM_COMMIT=<commit> for `plim --version`.)
+#
+# (Docker: docker build -f Containerfile.cli --output dist/ .)
+
+# ---- build ----
+FROM docker.io/library/rust:1-alpine AS build
+# A C toolchain: SQLite (bundled) and aws-lc (rustls' crypto) are built from source.
+RUN apk add --no-cache musl-dev build-base cmake perl
+WORKDIR /src
+COPY Cargo.toml Cargo.lock ./
+COPY crates crates
+COPY server server
+# The commit, for `plim --version` (no .git in here): --build-arg PLIM_COMMIT=$(git rev-parse --short HEAD)
+ARG PLIM_COMMIT=unknown
+ENV PLIM_COMMIT=$PLIM_COMMIT
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/src/target \
+    cargo build --release --locked -p plim-cli \
+ && cp target/release/plim /plim \
+ && strip /plim
+
+# ---- out: only the binary ----
+FROM scratch
+COPY --from=build /plim /plim

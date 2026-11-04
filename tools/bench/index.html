@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- The note index benchmark (#262) in a browser: serve the repo root (serve.mjs) and open
+     /tools/bench/ — or on the iPhone simulator, ios.mjs does that and reads the results. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Index bench</title>
+<style>body { font: 14px system-ui; margin: 16px; } pre { white-space: pre-wrap; }</style>
+<h1>Note index</h1>
+<p id="status">running…</p>
+<pre id="out"></pre>
+<script type="module">
+  import { all } from './index-bench.mjs';
+  const out = document.getElementById('out');
+  const rows = [];
+  try {
+    await all(undefined, (r) => { rows.push(r); out.textContent = JSON.stringify(rows); });
+    document.getElementById('status').textContent = `done: ${navigator.userAgent}`;
+  } catch (e) {
+    document.getElementById('status').textContent = `failed: ${e.message}`;
+  }
+  out.dataset.done = '1';
+</script>

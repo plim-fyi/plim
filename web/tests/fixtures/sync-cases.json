@@ -1,0 +1,283 @@
+{
+  "about": "How the sync engine behaves (#441): the same cases replayed by the web app's (web/core/sync.js, sharesync.js; web/tests/sync-cases.test.mjs, against web/tests/lib.mjs's FakeServer) and the terminal client's (crates/plim-cli/src/sync.rs; sync_cases.rs, against the real plim-server in process). They pin what the two must agree on: what is uploaded and when it stops, what a reopened device still has, rollback detection, compaction, and a shared note's keys. Not timing (debounce, polling) or how either app shows things.",
+  "format": {
+    "case": "{ name, why, note: 'private' (default) | 'shared', maxBlob?: bytes the server takes (default 1 MiB), clientMaxBlob?: what the device thinks it takes (default the same), steps: [...] }",
+    "device step": "{ on: 'A', do, ... }. A device is its own storage (outbox, what it saw the server confirm), kept across opens. do: 'open' (a new engine for the note on this device, dropping the last one unflushed, then load: this device's unsent edits and the server's state; a shared note: link 'edit' (default) or 'view'), 'type' (text inserted at 'at': a number or 'end' (default); times: text repeated), 'replace' (the whole text, as text × times), 'flush' (upload what's pending), 'pull', 'compact' (snapshot if the updates since the last are many or big), 'snapshot' (now), 'acknowledge' (a rollback: what the server has now is the baseline).",
+    "server step": "{ server, ... }: 'share' (a shared note made with text), 'drop-update' (seq: lose one update), 'drop-updates' (lose them all: as pruning does once a snapshot covers them), 'close' (the note takes no more writes: shared or deleted elsewhere, #119), 'turn-off-links' (a shared note's links), 'forge-update' (text: an update in a shared note not signed with its key, as a server could serve).",
+    "repeat": "{ repeat: n, steps: [...] }: the steps n times, '{i}' in their text the count from 0.",
+    "refusals": "A step may be refused by the server: refused: status (it must be, with that status) or tolerate: [statuses] (it may be). Any other error fails the case.",
+    "expect": "{ expect: { A: {...}, server: {...} } }. A device: text (or { sameAs: 'B' }), pending (outbox records), rollbacks ([{ missing: clients the server lost, incomplete: updates whose predecessors are missing }], since this device's last open), forged (changes skipped since its last open), status (the last one said: 'saved', 'too-large', ...), gone, writable, lastSeq, snapshotSeq. The server: updates (how many it has), snapshot (what its newest covers, or null), refused (requests it refused since the case began). A number may be { atLeast: n }."
+  },
+  "cases": [
+    {
+      "name": "two devices converge",
+      "why": "Edits made at both ends at once, uploaded and pulled in any order, end the same everywhere.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "on": "A", "do": "type", "text": "Hello from A. " },
+        { "on": "A", "do": "flush" },
+        { "on": "B", "do": "open" },
+        { "expect": { "B": { "text": "Hello from A. ", "lastSeq": 1 } } },
+        { "on": "B", "do": "type", "text": "B first! ", "at": 0 },
+        { "on": "A", "do": "type", "text": "A again." },
+        { "on": "A", "do": "flush" },
+        { "on": "B", "do": "flush" },
+        { "on": "A", "do": "pull" },
+        { "on": "B", "do": "pull" },
+        { "expect": { "A": { "text": "B first! Hello from A. A again.", "pending": 0, "lastSeq": 3 }, "B": { "text": { "sameAs": "A" }, "pending": 0, "lastSeq": 3 }, "server": { "updates": 3 } } }
+      ]
+    },
+    {
+      "name": "unsent edits survive a restart",
+      "why": "An edit that never left (the app closed, the process killed) is still there when the note opens again, and uploads then.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "on": "A", "do": "type", "text": "typed, never uploaded" },
+        { "on": "A", "do": "open" },
+        { "expect": { "A": { "text": "typed, never uploaded", "pending": 1 }, "server": { "updates": 0 } } },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "pending": 0, "status": "saved" }, "server": { "updates": 1 } } },
+        { "on": "B", "do": "open" },
+        { "expect": { "B": { "text": "typed, never uploaded" } } }
+      ]
+    },
+    {
+      "name": "rollback: the server losing the newest update is noticed",
+      "why": "A device remembers what the server confirmed; served less later, it says so, once. A device that never saw it can't tell. Acknowledged, it's the new baseline.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "repeat": 3, "steps": [{ "on": "A", "do": "type", "text": "edit {i}\n", "at": 0 }, { "on": "A", "do": "flush" }] },
+        { "on": "A", "do": "open" },
+        { "expect": { "A": { "rollbacks": [], "text": "edit 2\nedit 1\nedit 0\n" } } },
+        { "server": "drop-update", "seq": 3 },
+        { "on": "A", "do": "open" },
+        { "expect": { "A": { "rollbacks": [{ "missing": 1, "incomplete": false }], "text": "edit 1\nedit 0\n" } } },
+        { "on": "B", "do": "open" },
+        { "expect": { "B": { "rollbacks": [] } } },
+        { "on": "A", "do": "acknowledge" },
+        { "on": "A", "do": "open" },
+        { "expect": { "A": { "rollbacks": [] } } }
+      ]
+    },
+    {
+      "name": "rollback: no false alarm after compaction and pruning",
+      "why": "A snapshot standing for the updates it covers, and those updates gone, is the same state: nothing to report.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "repeat": 3, "steps": [{ "on": "A", "do": "type", "text": "edit {i}\n", "at": 0 }, { "on": "A", "do": "flush" }] },
+        { "on": "A", "do": "open" },
+        { "on": "A", "do": "snapshot" },
+        { "expect": { "A": { "snapshotSeq": 3 }, "server": { "snapshot": 3 } } },
+        { "server": "drop-updates" },
+        { "on": "A", "do": "open" },
+        { "expect": { "A": { "rollbacks": [], "text": "edit 2\nedit 1\nedit 0\n", "snapshotSeq": 3, "lastSeq": 3 }, "server": { "updates": 0 } } },
+        { "on": "C", "do": "open" },
+        { "expect": { "C": { "rollbacks": [], "text": "edit 2\nedit 1\nedit 0\n" } } }
+      ]
+    },
+    {
+      "name": "rollback: an older snapshot without the later updates is noticed",
+      "why": "The server serving a snapshot older than what it confirmed since, and none of the updates after it, is a rollback.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "repeat": 2, "steps": [{ "on": "A", "do": "type", "text": "edit {i}\n", "at": 0 }, { "on": "A", "do": "flush" }] },
+        { "on": "A", "do": "snapshot" },
+        { "on": "A", "do": "type", "text": "newer\n", "at": 0 },
+        { "on": "A", "do": "flush" },
+        { "expect": { "server": { "updates": 3, "snapshot": 2 } } },
+        { "server": "drop-updates" },
+        { "on": "A", "do": "open" },
+        { "expect": { "A": { "rollbacks": [{ "missing": 1, "incomplete": false }], "text": "edit 1\nedit 0\n" } } }
+      ]
+    },
+    {
+      "name": "rollback: a withheld earlier update is noticed even on a new device",
+      "why": "An update whose predecessor the server didn't send can't be applied: even with nothing remembered, that's said. What it can apply, it shows.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "repeat": 3, "steps": [{ "on": "A", "do": "type", "text": "edit {i}\n", "at": 0 }, { "on": "A", "do": "flush" }] },
+        { "server": "drop-update", "seq": 2 },
+        { "on": "B", "do": "open" },
+        { "expect": { "B": { "rollbacks": [{ "missing": 0, "incomplete": true }], "text": "edit 0\n" } } }
+      ]
+    },
+    {
+      "name": "rollback: a device's own unsent edits don't count",
+      "why": "What's only in this device's outbox was never confirmed: it isn't missing from the server. Losing what was confirmed is.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "on": "A", "do": "type", "text": "uploaded\n" },
+        { "on": "A", "do": "flush" },
+        { "on": "A", "do": "type", "text": "not uploaded yet", "at": 0 },
+        { "on": "A", "do": "open" },
+        { "expect": { "A": { "rollbacks": [], "pending": 1, "text": "not uploaded yetuploaded\n" } } },
+        { "server": "drop-updates" },
+        { "on": "A", "do": "open" },
+        { "expect": { "A": { "rollbacks": [{ "missing": 1, "incomplete": false }], "pending": 1 } } },
+        { "on": "A", "do": "acknowledge" },
+        { "on": "A", "do": "open" },
+        { "expect": { "A": { "rollbacks": [] } } }
+      ]
+    },
+    {
+      "name": "compaction: a snapshot once there are more than 100 updates",
+      "why": "The device that uploads the 101st update since the last snapshot snapshots, covering what it has; a new device then loads one blob and the few updates after it.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "repeat": 105, "steps": [{ "on": "A", "do": "type", "text": "{i} ", "at": 0 }, { "on": "A", "do": "flush" }, { "on": "A", "do": "pull" }] },
+        { "expect": { "A": { "lastSeq": 105, "snapshotSeq": 101, "pending": 0 }, "server": { "updates": 105, "snapshot": 101 } } },
+        { "on": "B", "do": "open" },
+        { "expect": { "B": { "text": { "sameAs": "A" }, "snapshotSeq": 101, "lastSeq": 105, "rollbacks": [] } } }
+      ]
+    },
+    {
+      "name": "compaction: big pastes snapshot long before 100 updates",
+      "why": "Updates since the last snapshot adding up to more than 512 KB (or half the server's limit) are worth a snapshot too.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "repeat": 4, "steps": [{ "on": "A", "do": "replace", "text": "v{i} ", "times": 68000 }, { "on": "A", "do": "flush" }] },
+        { "expect": { "A": { "pending": 0 }, "server": { "updates": 4, "snapshot": 3 } } },
+        { "on": "B", "do": "open" },
+        { "expect": { "B": { "text": { "sameAs": "A" }, "snapshotSeq": 3, "lastSeq": 4 } } }
+      ]
+    },
+    {
+      "name": "compaction: an older snapshot is refused and changes nothing",
+      "why": "A device behind another's snapshot can't replace it with an older one (409). It stays as it was, and catches up with a pull.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "repeat": 3, "steps": [{ "on": "A", "do": "type", "text": "edit {i}\n", "at": 0 }, { "on": "A", "do": "flush" }] },
+        { "on": "B", "do": "open" },
+        { "repeat": 2, "steps": [{ "on": "A", "do": "type", "text": "more {i}\n", "at": 0 }, { "on": "A", "do": "flush" }] },
+        { "on": "A", "do": "snapshot" },
+        { "on": "B", "do": "snapshot", "refused": 409 },
+        { "expect": { "B": { "snapshotSeq": 0, "lastSeq": 3 }, "server": { "snapshot": 5 } } },
+        { "on": "B", "do": "pull" },
+        { "expect": { "B": { "text": { "sameAs": "A" }, "snapshotSeq": 5, "lastSeq": 5, "rollbacks": [] } } }
+      ]
+    },
+    {
+      "name": "uploads: pending edits upload in pieces that fit the server's limit",
+      "why": "A lot of edits waiting (a long time offline, big pastes) are merged into as few uploads as fit half the server's limit, never one it would refuse. A note too big to snapshot says so, and still saves.",
+      "maxBlob": 65536,
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "repeat": 10, "steps": [{ "on": "A", "do": "type", "text": "p{i} ", "times": 6800 }] },
+        { "expect": { "A": { "pending": 10 } } },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "pending": 0, "status": "too-large", "lastSeq": 10 }, "server": { "updates": 10, "snapshot": null } } },
+        { "on": "B", "do": "open" },
+        { "expect": { "B": { "text": { "sameAs": "A" } } } }
+      ]
+    },
+    {
+      "name": "uploads: an edit too big for the server is kept, said, and not retried",
+      "why": "One edit bigger than the server takes can't be split: it stays in the outbox, the device says so, and doesn't try again until the note changes (and then, still too big, says so again).",
+      "maxBlob": 65536,
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "on": "A", "do": "type", "text": "x ", "times": 102400 },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "status": "too-large", "pending": 1 }, "server": { "updates": 0, "refused": 0 } } },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "status": "too-large", "pending": 1 }, "server": { "updates": 0, "refused": 0 } } },
+        { "on": "A", "do": "type", "text": "y" },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "status": "too-large", "pending": 2 }, "server": { "updates": 0, "refused": 0 } } }
+      ]
+    },
+    {
+      "name": "uploads: an edit the server refuses as too big isn't sent again",
+      "why": "A device can think the server takes more than it does (an older limit). Refused (413), the edit stays in the outbox, the device says so, and doesn't send it again until the note changes.",
+      "maxBlob": 65536,
+      "clientMaxBlob": 1048576,
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "on": "A", "do": "type", "text": "x ", "times": 102400 },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "status": "too-large", "pending": 1 }, "server": { "updates": 0, "refused": 1 } } },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "status": "too-large", "pending": 1 }, "server": { "updates": 0, "refused": 1 } } },
+        { "on": "A", "do": "type", "text": "y" },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "status": "too-large", "pending": 2 }, "server": { "updates": 0, "refused": 2 } } }
+      ]
+    },
+    {
+      "name": "gone: a note closed elsewhere keeps its unsent edits and stops trying",
+      "why": "Once another device has shared or deleted the note (#119), the server takes no more writes for it (410). Edits made here meanwhile stay in the outbox, for the app to move to the note's new home; nothing is retried.",
+      "steps": [
+        { "on": "A", "do": "open" },
+        { "on": "A", "do": "type", "text": "before" },
+        { "on": "A", "do": "flush" },
+        { "server": "close" },
+        { "on": "A", "do": "type", "text": "late ", "at": 0 },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "gone": true, "pending": 1 }, "server": { "updates": 1 } } },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "gone": true, "pending": 1 }, "server": { "updates": 1 } } }
+      ]
+    },
+    {
+      "name": "shared: an edit link reads and writes, a view link only reads",
+      "why": "A shared note syncs like a private one, with the share's keys. A view link has no signing key: it reads everything and queues nothing.",
+      "note": "shared",
+      "steps": [
+        { "server": "share", "text": "Hello" },
+        { "on": "A", "do": "open", "link": "edit" },
+        { "expect": { "A": { "text": "Hello", "writable": true, "lastSeq": 1 } } },
+        { "on": "A", "do": "type", "text": " world" },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "pending": 0 }, "server": { "updates": 2 } } },
+        { "on": "B", "do": "open", "link": "view" },
+        { "expect": { "B": { "text": "Hello world", "writable": false } } },
+        { "on": "B", "do": "type", "text": "x", "at": 0 },
+        { "on": "B", "do": "flush" },
+        { "expect": { "B": { "pending": 0 }, "server": { "updates": 2 } } }
+      ]
+    },
+    {
+      "name": "shared: a change not signed with the share's key is skipped, and said",
+      "why": "Only an edit link can sign; the server never has one. What it serves unsigned (forged, or written with only a view link) isn't applied, is reported, and isn't asked for again (#77).",
+      "note": "shared",
+      "steps": [
+        { "server": "share", "text": "Real" },
+        { "server": "forge-update", "text": "EVIL " },
+        { "on": "A", "do": "open", "link": "edit" },
+        { "expect": { "A": { "text": "Real", "forged": 1, "lastSeq": 2 } } },
+        { "on": "A", "do": "pull" },
+        { "expect": { "A": { "text": "Real", "forged": 1, "lastSeq": 2 } } }
+      ]
+    },
+    {
+      "name": "shared: a note whose links were turned off stops",
+      "why": "Its links turned off (410), a shared note takes no more writes: edits made meanwhile stay here, and nothing is retried.",
+      "note": "shared",
+      "steps": [
+        { "server": "share", "text": "Soon gone" },
+        { "on": "A", "do": "open", "link": "edit" },
+        { "on": "A", "do": "type", "text": "!" },
+        { "server": "turn-off-links" },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "gone": true, "pending": 1 }, "server": { "updates": 1 } } },
+        { "on": "A", "do": "pull", "tolerate": [410] },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "gone": true, "pending": 1 }, "server": { "updates": 1 } } }
+      ]
+    },
+    {
+      "name": "shared: a note opened after its links were turned off knows it",
+      "why": "Opening a shared note whose links are off (410) finds out at once: no upload is tried later.",
+      "note": "shared",
+      "steps": [
+        { "server": "share", "text": "Already gone" },
+        { "server": "turn-off-links" },
+        { "on": "A", "do": "open", "link": "edit", "tolerate": [410] },
+        { "expect": { "A": { "gone": true } } },
+        { "on": "A", "do": "type", "text": "!" },
+        { "on": "A", "do": "flush" },
+        { "expect": { "A": { "gone": true, "pending": 1 }, "server": { "updates": 1 } } }
+      ]
+    }
+  ]
+}

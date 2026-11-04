@@ -1,0 +1,1711 @@
+/* The look of the homelab apps (wren, seedling, gitview; #565): hairline rules, figures in mono,
+   no cards, shadows or rounded corners. Ink on paper; the one colour is meaning (ok, warn, danger),
+   and blue only marks focus. */
+:root {
+  --bg: #fbfbfa;
+  --surface: #fbfbfa;
+  --surface-2: #f3f3f1;
+  --text: #1a1a19;
+  --soft: #4a4a46; /* text a step quieter than --text: a script's name, a diff's context */
+  --muted: #6b6b66;
+  --faint: #b4b4ae; /* marks and markup: a tag's #, a run's rule */
+  --border: #d9d9d4; /* under headings, round controls */
+  --accent: #1a1a19; /* the main action: ink, as the text */
+  --accent-text: #fbfbfa;
+  --focus: #3d6fd6;
+  /* What an app or a script wrote (#389, #552): a grey band, the same for every writer (its name says who). */
+  --mark: #ececE7;
+  --rule: #ececea; /* between rows */
+  --reach-1: #6b6b66;
+  --reach-2: #6b6b66;
+  --reach-3: #6b6b66;
+  --reach-4: #6b6b66;
+  --reach-ink: #fbfbfa;
+  --danger: #b0322a;
+  --ok: #2f7d3b;
+  --warn: #a8660b;
+  /* Corners (#414, #560): none. The tokens stay so a corner, if ever wanted, is one place. */
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius: 0;
+  --radius-lg: 0;
+  /* Text sizes (#414, #560): the app's own text 13px, its labels and figures 11–12px mono; a
+     note's text 16px (a phone's textarea under 16px makes iOS zoom in). Inputs stay at 16px or
+     more on phones (see input, select). */
+  --text-2xs: 10px; /* a cursor's name tag */
+  --text-xs: 11px; /* labels, badges, times */
+  --text-sm: 12px; /* secondary lines, buttons */
+  --text-md: 13px; /* the app's own text: lists, menus, settings */
+  --text-base: 15px; /* touch-sized controls, emphasis */
+  --text-note: 16px; /* a note's text, and headings at its size */
+  --text-lg: 15px; /* headings */
+  --text-xl: 1.5rem; /* the brand */
+  --sidebar-width: 280px;
+  /* (See-through: buttons lay it over their own background on hover.) */
+  --hover: rgb(26 26 25 / 0.045);
+  --selected: #f3f3f1; /* (with a 2px rule of ink on its left) */
+  --diff-add: color-mix(in srgb, var(--ok) 14%, transparent);
+  --diff-add-strong: color-mix(in srgb, var(--ok) 34%, transparent);
+  --diff-del: color-mix(in srgb, var(--danger) 12%, transparent);
+  --diff-del-strong: color-mix(in srgb, var(--danger) 30%, transparent);
+  --track: var(--border);
+  --shadow: none;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --card-shadow: none; /* (a card over the note, e.g. a link's: an ink edge instead) */
+  /* Dialogs (#338, #560): on the page's paper, an ink edge; what's in them ruled, not raised. */
+  --dialog: #fbfbfa;
+  --raised: #fbfbfa;
+  --raised-edge: #d9d9d4;
+  --divider: #ececea;
+  --field: #fbfbfa;
+  --btn: #fbfbfa;
+  --scrim: rgb(26 26 25 / 0.18);
+  --dialog-shadow: none;
+  /* What scrolls under a bar fades into it (a mask: the text itself, not a shadow). */
+  --scroll-fade: linear-gradient(to bottom, rgb(0 0 0 / 0.35), #000 2rem);
+  /* (A pane with more below it: its bottom edge fades instead, or both edges, #393.) */
+  --fade-below: linear-gradient(to top, rgb(0 0 0 / 0.2), #000 2.5rem);
+  --fade-both: linear-gradient(to bottom, rgb(0 0 0 / 0.35), #000 2rem, #000 calc(100% - 2.5rem), rgb(0 0 0 / 0.2));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413;
+    --surface: #141413;
+    --surface-2: #1c1c1a;
+    --text: #e8e8e3;
+    --soft: #b9b9b2;
+    --muted: #9a9a93;
+    --faint: #5c5c57;
+    --border: #34342f;
+    --accent: #e8e8e3;
+    --accent-text: #141413;
+    --focus: #7aa2f7;
+    --mark: #242421;
+    --rule: #262624;
+    --reach-1: #9a9a93;
+    --reach-2: #9a9a93;
+    --reach-3: #9a9a93;
+    --reach-4: #9a9a93;
+    --reach-ink: #141413;
+    --danger: #e0695e;
+    --ok: #6cc27a;
+    --warn: #f2b24b;
+    --hover: rgb(232 232 227 / 0.04);
+    --selected: #1c1c1a;
+    --shadow: none;
+    --card-shadow: none;
+    --dialog: #141413;
+    --raised: #141413;
+    --raised-edge: #34342f;
+    --divider: #262624;
+    --field: #141413;
+    --btn: #141413;
+    --scrim: rgb(0 0 0 / 0.45);
+    --dialog-shadow: none;
+  }
+}
+
+* { box-sizing: border-box; }
+/* Scroll bars: thin, and a muted thumb on no track (Chrome on Linux and Windows draws wide grey ones). */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--text) 22%, transparent) transparent; }
+[hidden] { display: none !important; }
+
+html, body { height: 100%; }
+/* While a phone's keyboard is open over the editor (editor.js, #209): the page is what's above
+   the keyboard, with nothing for the browser to scroll; and the keyboard covers the home indicator. */
+:root[data-keyboard], :root[data-keyboard] body { height: var(--visible-height); }
+:root[data-keyboard] body { padding-bottom: 0; }
+/* A dialog open meanwhile (typing in Settings, #236): at the top, as tall as what's above the
+   keyboard at most, its own content scrolling to the field. */
+:root[data-keyboard] dialog[open] {
+  margin-block: calc(0.5rem + env(safe-area-inset-top)) auto;
+  max-height: calc(var(--visible-height) - 1rem - env(safe-area-inset-top));
+}
+/* Feel like an app: the page never rubber-bands or pulls to refresh, and
+   scrolling inside a list or the editor never drags the whole page along. */
+html, body { overscroll-behavior: none; }
+.note-list, dialog { overscroll-behavior: contain; }
+/* No double-tap zoom; keep the browser from inflating text on rotation. */
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  /* Clear the notch and home indicator (viewport-fit=cover), mainly when added to the home screen. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+/* Figures line up (#560): counts, times and sizes in mono, tabular. */
+.fig, .when, .side-count, .find-count, .menu-live, .nav-sub { font-variant-numeric: tabular-nums; }
+
+h2 { margin: 0 0 0.25rem; font-size: var(--text-lg); }
+p { margin: 0; }
+code { font-family: var(--mono); font-size: var(--text-sm); word-break: break-all; }
+
+/* ---- controls ---- */
+button, a.button {
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+}
+/* (A link that looks like a button: the home page's, to /login.) */
+a.button { display: block; text-align: center; text-decoration: none; }
+/* An overlay, so hover shows on any background and in both themes. */
+button:hover:not(:disabled), a.button:hover { background-image: linear-gradient(var(--hover), var(--hover)); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+/* Buttons (#560): square, a hairline edge, their words in mono. The main one: an ink edge, bold. */
+button.small, button.primary, button.danger, button.danger-fill, a.button.primary {
+  font-family: var(--mono); font-size: var(--text-sm); background-color: transparent; min-height: 28px;
+}
+button.primary, a.button.primary { border-color: var(--text); color: var(--text); font-weight: 600; }
+a.button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Home (plim.fyi/ without a vault): a short overview, three points over the way in. */
+.home-points { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.7rem; color: var(--muted); font-size: var(--text-md); line-height: 1.5; }
+.home-points li { padding-left: 0.9rem; border-left: 2px solid var(--rule); }
+.home-points b { color: var(--text); font-weight: 600; }
+.home-points code { font: var(--text-sm) var(--mono); color: var(--soft); }
+.home-more { margin: 0; text-align: center; font-size: var(--text-md); }
+button.small { padding: 0.3rem 0.65rem; }
+button.danger { color: var(--danger); }
+/* The one irreversible action (Delete my account): filled red, only once confirmed. */
+button.danger-fill { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+button.danger-fill:disabled { opacity: 0.45; cursor: not-allowed; }
+#delete-dialog { width: min(calc(100vw - 2rem), 520px); }
+.delete-body { display: grid; gap: 0.6rem; }
+.delete-body p, .delete-body ul { margin: 0; }
+.delete-body ul { padding-left: 1.2rem; display: grid; gap: 0.2rem; }
+button.link { background: none; border: none; color: var(--muted); padding: 0.35rem 0.5rem; text-decoration: underline; }
+button.link:hover:not(:disabled) { background-image: none; color: var(--text); }
+/* Quiet: just the label until hovered. */
+button.ghost { background-color: transparent; border-color: transparent; }
+
+input, textarea {
+  font: inherit;
+  /* 16px or more, or iOS Safari zooms in when a field is focused. */
+  font-size: max(16px, 1em);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  width: 100%;
+}
+label { display: grid; gap: 0.3rem; font-size: var(--text-md); color: var(--muted); }
+label.check { display: flex; align-items: center; gap: 0.5rem; color: var(--text); }
+select {
+  font: inherit; font-size: max(16px, 1em); color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.35rem 0.5rem;
+}
+/* With a mouse, match the small buttons beside it (touch keeps 16px: iOS zooms in on smaller fields). */
+@media (pointer: fine) { select { font-size: var(--text-sm); padding: 0.35rem 0.5rem; } }
+label.check input { width: auto; }
+#restore-input { font-family: var(--mono); resize: vertical; }
+
+.error { color: var(--danger); font-size: var(--text-md); min-height: 1.2em; }
+.error:empty { min-height: 0; }
+.error-details { display: block; margin-top: 0.35rem; font-size: var(--text-sm); color: var(--muted); }
+.muted { color: var(--muted); }
+.tiny { font-size: var(--text-sm); }
+
+/* ---- layout ---- */
+.view.center { min-height: 100%; display: grid; place-items: center; padding: 1.5rem 1rem; }
+.card {
+  width: min(100%, 420px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 1.75rem;
+  display: grid;
+  gap: 1rem;
+}
+.card.wide { width: min(100%, 560px); }
+.card.narrow { width: min(100%, 320px); }
+.center-text { text-align: center; justify-items: center; }
+.stack { display: grid; gap: 0.75rem; }
+.row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.row.end { justify-content: flex-end; }
+
+/* Plim's name (#567), as written: Plim, in the app's own sans, beside its π. */
+.brand {
+  display: flex; align-items: center; gap: 0.55rem; font-size: var(--text-xl);
+  font-family: var(--sans); font-weight: 600; letter-spacing: -0.01em;
+}
+.brand.small { font-size: var(--text-base); }
+.logo { width: 1.1em; height: 1.1em; display: block; }
+.lede { color: var(--muted); font-size: var(--text-note); }
+.lede strong { color: var(--text); font-weight: 600; }
+.lede-link { color: var(--text); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+
+/* ---- recovery words ---- */
+.words {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;
+  counter-reset: w;
+}
+.words li {
+  counter-increment: w;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.6rem;
+  font-family: var(--mono);
+  font-size: var(--text-md);
+}
+.words li::before { content: counter(w) '. '; color: var(--muted); font-size: var(--text-sm); }
+@media (max-width: 480px) { .words { grid-template-columns: repeat(2, 1fr); } }
+
+.spinner {
+  width: 32px; height: 32px; border-radius: 50%; /* (the one round thing: it turns) */
+  border: 2px solid var(--border); border-top-color: var(--text);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- notes ---- */
+.notes { height: 100%; display: grid; grid-template-columns: var(--sidebar-width) 1fr; grid-template-rows: auto minmax(0, 1fr); }
+.notes > .sidebar, .notes > .editor-pane { grid-row: 2; min-height: 0; }
+/* Hiding the sidebar (desktop; app.js): its buttons, a panel icon, quiet until pointed at. */
+/* It sits in the sidebar's icon column (New note's, Recently deleted's): --icon-col from the
+   left, the same size as those icons (#201). (button.: over button.small's padding.) */
+:root { --icon-col: calc(1rem + 1.05rem / 2); } /* (.sidebar-actions' and .side-action's padding, then half an icon) */
+button.panel-btn { width: 2.2rem; height: 2.2rem; padding: 0; display: inline-grid; place-items: center; flex: none;
+  background-color: transparent; border-color: transparent; color: var(--muted); }
+.panel-btn:hover { color: var(--text); }
+.panel-btn .icon { width: 1.05rem; height: 1.05rem; }
+.sidebar-head { padding-left: calc(var(--icon-col) - 0.55rem); } /* (the logo, 1.1rem wide, centred on the column) */
+#sidebar-show, .sidebar-edge { display: none; }
+.sidebar-edge { position: fixed; left: 0; top: 0; bottom: 0; width: 10px; z-index: 39; }
+@media (min-width: 721px) {
+  :root[data-sidebar='hidden'] .notes { grid-template-columns: 0 1fr; }
+  :root[data-sidebar='hidden'] .notes > .editor-pane { grid-column: 2; }
+  :root[data-sidebar='hidden'] .notes .editor-head { display: flex; } /* (its button, even with no note open) */
+  :root[data-sidebar='hidden'] #sidebar-show { display: inline-grid; }
+  /* Hidden or peeking, its button is first, on the column (where the logo is when shown). */
+  :root[data-sidebar='hidden'] .notes .editor-head, :root[data-sidebar='hidden'] .sidebar-head { padding-left: calc(var(--icon-col) - 1.1rem); }
+  :root[data-sidebar='hidden'] .sidebar-head { justify-content: flex-start; }
+  :root[data-sidebar='hidden'] .sidebar-head .brand { display: none; }
+  /* Pointing at it brings the sidebar in over it at once: no hand cursor or hover square to flash
+     first (the sidebar's own button keeps it open; this one's click is for the keyboard). */
+  :root[data-sidebar='hidden'] #sidebar-show { cursor: default; }
+  :root[data-sidebar='hidden'] #sidebar-show:hover { background-image: none; color: var(--muted); }
+  :root[data-sidebar='hidden'] .sidebar-edge { display: block; }
+  /* Peeking: over the note, flush with the window's edges (so its button is where the note bar's is). */
+  :root[data-sidebar='hidden'] .notes > .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-width); z-index: 40;
+    border-right: 1px solid var(--border); box-shadow: var(--card-shadow); overflow: hidden; /* (a hairline, as when it's shown: no bright edge) */
+    /* It appears in place, a fade and nothing else. Hiding, it lets the pointer through at once
+       (no hand cursor flickering over its buttons as it fades away). */
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.12s ease-in, visibility 0s 0.12s;
+  }
+  :root[data-sidebar='hidden'] .notes.sidebar-peek > .sidebar {
+    opacity: 1; visibility: visible; pointer-events: auto;
+    transition: opacity 0.2s ease-out;
+  }
+  :root[data-sidebar='hidden'] .banner { left: 50%; width: min(calc(100% - 2rem), 640px); } /* (centred on the window: no sidebar beside) */
+}
+@media (max-width: 720px) { #sidebar-toggle { display: none; } }
+@media (prefers-reduced-motion: reduce) { :root[data-sidebar='hidden'] .notes > .sidebar { transition: none !important; } }
+/* While the server can't be reached: a pill over the top of the notes, taking no room, so
+   nothing moves when it comes or goes (#442: as a row it pushed the whole page down and back up
+   with every lost connection). Taps go through it. */
+.offline-bar {
+  position: fixed; z-index: 12; top: calc(env(safe-area-inset-top) + 0.6rem); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;
+  padding: 0.25rem 0.75rem; font-size: var(--text-sm); pointer-events: none;
+  background: var(--surface); color: var(--muted); border: 1px solid var(--border); border-radius: 0; box-shadow: var(--shadow);
+}
+.offline-bar strong { color: var(--text); }
+/* The lock screen's "You're offline" (known once the server doesn't answer): under its card, out of
+   its flow, so the card doesn't grow and move when it comes (#442). */
+#view-locked .card { position: relative; }
+.locked-offline { position: absolute; top: 100%; left: 0; right: 0; margin: 0.75rem 0 0; text-align: center; }
+/* (In the header's empty middle: beside the note's title on a computer, between Back and the
+   buttons on a phone, level with them.) */
+@media (min-width: 721px) {
+  .offline-bar { left: calc(50% + var(--sidebar-width) / 2); }
+  /* (A long title ends before it, not under it.) */
+  :root:has(#offline-bar:not([hidden])) .editor-head .note-title { flex: 0 1 auto; max-width: calc(50% - 12rem); }
+}
+@media (max-width: 720px) {
+  .offline-bar { top: calc(env(safe-area-inset-top) + 0.95rem); }
+  :root:has(#offline-bar:not([hidden])) .editor-head .note-title { visibility: hidden; } /* (its place; the note shows it) */
+  .offline-more { display: none; } /* (just "Offline": the header's middle is narrow; the rest is its title) */
+}
+.offline-bar::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 0; background: var(--warn); }
+.sidebar {
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--bg); border-right: 1px solid var(--border); /* (the note beside it is the lighter surface) */
+}
+/* The sidebar header and the note's bar share one height, with no line beneath. On desktop,
+   once the note is scrolled (app.js: .scrolled), its text fades slightly as it reaches the bar
+   (to a third, over 2rem); the bar itself stays as it is. The sidebar's list fades the same way
+   under New note. On phones nothing fades. */
+.sidebar-head, .editor-head { min-height: 3.5rem; padding: 0.5rem 1rem; }
+.editor-head { position: relative; z-index: 2; }
+@media (min-width: 721px) {
+  .editor-pane.scrolled #editor .cm-scroller, .editor-pane.scrolled .reading, .sidebar-scroll.scrolled {
+    -webkit-mask-image: var(--scroll-fade);
+    mask-image: var(--scroll-fade);
+  }
+}
+.sidebar-head { display: flex; justify-content: space-between; align-items: center; }
+/* Above the notes: New note and Recently deleted, then a "Notes" label. */
+.sidebar-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sidebar-actions { display: grid; gap: 1px; padding: 0.5rem 0.5rem 0; }
+/* New note stays put above the scrolling part, which starts right under it. */
+.sidebar-new { flex: none; padding-bottom: 1px; }
+.sidebar-scroll > .sidebar-actions { padding-top: 0; }
+/* Search (#24, ui/search.js): a field under New note, always there; while it has words the list
+   is the notes with all of them, each with its lines that matched, and the tags step aside. */
+.sidebar-search { flex: none; padding: 0.35rem 0.5rem 0.4rem; }
+.search-field {
+  display: flex; align-items: center; gap: 0.4rem; padding: 0 0.25rem 0 0.6rem;
+  background: var(--field); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.search-field:focus-within { border-color: var(--accent); }
+.search-field .icon { flex: none; width: 0.95rem; height: 0.95rem; color: var(--muted); }
+.search-field input { flex: 1; min-width: 0; border: none; background: none; padding: 0.45rem 0; font-size: var(--text-md); outline: none; -webkit-appearance: none; appearance: none; }
+.search-field input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .search-field input { font-size: 16px; } /* (iOS Safari zooms in on a field under 16px) */
+  /* Typing a search: the footer is behind the keyboard (a see-through one, on iOS 26): out of sight. */
+  .sidebar:has(#search-input:focus) .sidebar-foot { visibility: hidden; }
+}
+.search-clear { flex: none; display: flex; background: none; border: none; padding: 0.3rem; border-radius: var(--radius-xs); color: var(--muted); }
+.search-clear:hover { background: var(--hover); color: var(--text); }
+.search-summary { margin: 0.4rem 0.5rem 0; font-size: var(--text-xs); color: var(--muted); }
+.note-list .row-line { font-size: var(--text-sm); color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.note-list mark { background: color-mix(in srgb, var(--warn) 30%, transparent); color: inherit; border-radius: 2px; }
+/* What a search found in the open note: every match marked, the one you're at more so. */
+::highlight(find) { background-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+::highlight(find-current) { background-color: color-mix(in srgb, var(--warn) 70%, transparent); color: var(--text); }
+.cm-find { background: color-mix(in srgb, var(--warn) 30%, transparent); border-radius: 2px; }
+.cm-find-current { background: color-mix(in srgb, var(--warn) 70%, transparent); }
+.note-body { position: relative; }
+.find-bar {
+  position: absolute; top: 0.6rem; right: 1rem; z-index: 3; display: flex; align-items: center; gap: 0.15rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.75rem; background: var(--raised); border: 1px solid var(--text);
+  border-radius: var(--radius); box-shadow: var(--card-shadow); font-size: var(--text-sm);
+}
+.find-bar button { width: 2rem; height: 2rem; padding: 0; display: inline-grid; place-items: center; background-color: transparent; border-color: transparent; color: var(--muted); }
+.find-bar button:hover:not(:disabled) { color: var(--text); }
+.find-bar .icon { width: 1rem; height: 1rem; }
+.find-words { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.find-count { color: var(--muted); padding: 0 0.4rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  /* A phone: at the bottom, in reach of a thumb, as wide as the screen allows. */
+  .find-bar { top: auto; bottom: calc(0.75rem + env(safe-area-inset-bottom)); left: 0.75rem; right: 0.75rem; }
+  .find-words { flex: 1; max-width: none; }
+  .find-bar button { width: 44px; height: 44px; }
+}
+.side-action {
+  display: flex; align-items: center; gap: 0.6rem; width: 100%; text-align: left;
+  background: none; border: none; border-radius: var(--radius-sm); padding: 0.5rem; font-size: var(--text-md); color: var(--text);
+}
+.side-action:hover { background: var(--hover); }
+.side-action .icon { flex: none; width: 1.05rem; height: 1.05rem; color: var(--muted); }
+.side-action .shortcut, .side-count { margin-left: auto; font: inherit; font-size: var(--text-xs); font-weight: 400; color: var(--muted); }
+@media (hover: none) and (pointer: coarse) { .side-action .shortcut { display: none; } } /* (a touch screen: no keyboard to speak of) */
+/* Labels (#560): lowercase mono, muted, as the homelab apps' section headings. */
+.sidebar-label { margin: 0.9rem 1rem 0.2rem; font: 400 var(--text-xs) var(--mono); text-transform: lowercase; color: var(--muted); }
+/* Tags (#308, #539, #549, ui/taglist.js): chips over the list, inside the view you're in, on one
+   row that scrolls sideways (a swipe; a wheel or a trackpad), faded at an edge with more past it.
+   Each tag a word, #gym/legs one of its own; the one picked first, the only bright one, with ×. */
+.chips { padding: 0.15rem 0 0.45rem; display: grid; }
+.chips[hidden], .chip-row[hidden], .chip[hidden] { display: none; }
+.chip-row {
+  display: flex; align-items: center; gap: 0.35rem; min-width: 0; flex-wrap: nowrap; padding: 0 0.5rem;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; scroll-padding-inline: 0.5rem;
+}
+.chip-row::-webkit-scrollbar { display: none; }
+.chip-row.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent); }
+.chip-row.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 3rem), transparent); }
+.chip-row.more-left.more-right { mask-image: linear-gradient(to right, transparent, #000 3rem, #000 calc(100% - 3rem), transparent); }
+.tag-chips { display: contents; } /* (its chips are the row's) */
+/* (Badges, #560: mono, a hairline edge; the picked one filled with ink.) */
+.chip {
+  flex: none; display: inline-flex; align-items: center; gap: 0.35rem; max-width: 16rem; min-height: 1.5rem; padding: 0 0.45rem;
+  border: 1px solid var(--border); border-radius: 0; background: transparent;
+  color: var(--soft); font: var(--text-xs) var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chip .chip-name { overflow: hidden; text-overflow: ellipsis; }
+.chip[aria-pressed='true'] { background: var(--text); border-color: var(--text); color: var(--bg); font-weight: 600; padding-right: 0.3rem; }
+.chip .clear { flex: none; width: 0.85rem; height: 0.85rem; stroke-width: 2; }
+@media (hover: hover) { .chip:hover:not([aria-pressed='true']) { border-color: var(--text); color: var(--text); } }
+.chip-marks { display: inline-flex; }
+.chip-marks:empty { display: none; }
+.chip-marks .reach { margin: 0; top: 0; }
+/* Views (#539): where you are, in the sidebar; the one you're in, marked. A phone: a switch at
+   the top of the list instead, and Recently deleted at the list's end. */
+.views .view[aria-current='page'] { background: var(--selected); }
+.views .view[aria-current='page'] .icon { color: var(--text); }
+.views .view[hidden] { display: none; }
+.side-marks { margin-left: auto; }
+.notes-about { display: flex; align-items: center; gap: 0.5rem; margin: 0 1rem 0.5rem; font-size: var(--text-sm); color: var(--muted); }
+.notes-about[hidden] { display: none; }
+/* Who writes (#564): Connected's table, mono figures over hairlines; a writer picked, ruled in ink. */
+.writers {
+  width: calc(100% - 2rem); margin: 0 1rem 0.75rem; border-collapse: collapse;
+  font: var(--text-xs)/1.4 var(--mono); font-variant-numeric: tabular-nums; color: var(--soft);
+}
+.writers[hidden] { display: none; }
+.writers thead th { padding: 0 0 4px; border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 400; text-align: left; white-space: nowrap; }
+.writers thead th:first-child { padding-left: 0.5rem; }
+.writers tbody tr { border-bottom: 1px solid var(--rule); }
+.writers tbody th { padding: 0; font-weight: 400; text-align: left; }
+.writers .num { padding-left: 0.75rem; text-align: right; white-space: nowrap; }
+.writers tbody tr:hover { background: var(--hover); }
+.writers tr.picked th { box-shadow: inset 2px 0 0 var(--text); }
+.writers tr.picked { color: var(--text); background: var(--hover); }
+.writers .writer-pick:hover, .writers .writer-pick:active { background: transparent; }
+.writer-pick {
+  display: flex; align-items: center; width: 100%; min-height: 28px; padding: 0 0 0 0.5rem; border: 0;
+  background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.writer-pick .reach-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+@media (pointer: coarse) { .writer-pick { min-height: 44px; } }
+.view-switch-tabs { display: none; }
+.trash-foot { display: none; }
+@media (max-width: 720px) {
+  #notes-nav { display: none; }
+  .view-switch-tabs:not([hidden]) {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0 0.5rem 0.5rem; padding: 0; border: 1px solid var(--border);
+  }
+  .view-switch-tabs button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; min-height: 44px; border: none; border-radius: 0;
+    background: transparent; color: var(--muted); font: var(--text-sm) var(--mono);
+  }
+  .view-switch-tabs button[aria-checked='true'] { background: var(--text); color: var(--bg); font-weight: 600; }
+  .trash-foot:not([hidden]) { display: flex; width: calc(100% - 1rem); margin: 0.25rem 0.5rem 0.75rem; min-height: 44px; color: var(--muted); }
+  .trash-foot > span:first-of-type { flex: 1; }
+}
+/* A finger: chips big enough to hit. */
+@media (pointer: coarse) {
+  .chip { min-height: 44px; padding: 0 0.7rem; font-size: var(--text-sm); }
+}
+.notes-head { display: flex; align-items: center; gap: 0.25rem; padding: 0.6rem 0.5rem 0.2rem 0; }
+/* (Its room above and below is the row's, not the label's: the label, All notes and the order centred on one line.) */
+.notes-head .sidebar-label { margin-block: 0; }
+.notes-head #notes-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The list's order (#344, ui/menus.js): a quiet button at the label's right, saying which; its
+   menu, the one in use checked. Not in Recently deleted (it keeps its own: by when deleted). */
+.notes-sort {
+  flex: none; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.5rem;
+  border: none; border-radius: var(--radius-sm); background: none; color: var(--muted); font-size: var(--text-xs); white-space: nowrap;
+}
+.notes-sort[aria-expanded='true'] { background: var(--hover); color: var(--text); }
+@media (hover: hover) { .notes-sort:hover { background: var(--hover); color: var(--text); } } /* (a touch leaves :hover behind) */
+.notes-sort .icon { width: 0.9rem; height: 0.9rem; }
+.trash-mode .notes-sort { display: none; }
+.menu-title { margin: 0; padding: 0.45rem 0.75rem 0.25rem; font: 400 var(--text-xs) var(--mono); text-transform: lowercase; color: var(--muted); }
+.menu-note { margin: 0.25rem 0 0; padding: 0.5rem 0.75rem 0.4rem; border-top: 1px solid var(--border); font-size: var(--text-xs); color: var(--muted); }
+#sort-menu { min-width: 13rem; }
+#sort-menu:focus { outline: none; } /* (focused itself after a tap: no ring round it all) */
+#sort-menu button { display: flex; align-items: center; gap: 0.6rem; }
+#sort-menu .check { margin-left: auto; width: 1rem; height: 1rem; color: var(--accent); visibility: hidden; }
+#sort-menu [aria-checked='true'] { font-weight: 600; }
+#sort-menu [aria-checked='true'] .check { visibility: visible; }
+/* A finger: the button and the menu's rows big enough to hit (44 and 48 px). */
+@media (pointer: coarse) {
+  .notes-sort { min-height: 44px; padding-inline: 0.6rem; font-size: var(--text-md); }
+  #sort-menu { min-width: 15rem; }
+  #sort-menu button { min-height: 48px; font-size: var(--text-base); }
+}
+/* A phone: the order beside the search field, on its row (ui/sidebar.js moves it there); the
+   list's label row, left with only the view's name (the switch over it says that), not shown,
+   but in Recently deleted, where it carries ‹ All notes and the name. */
+@media (max-width: 720px) {
+  .sidebar-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 0.25rem; }
+  .sidebar-search .search-summary { grid-column: 1 / -1; }
+  .sidebar-search .notes-sort { padding-inline: 0.5rem; }
+  .notes-head:not(.picked) { display: none; }
+}
+/* Recently deleted picked (#354): ‹ All notes and the order on a line of their own, the name
+   below as the list's title. */
+.notes-head.picked { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 0.25rem; row-gap: 0.1rem; padding-top: 0.35rem; }
+.notes-head.picked .tag-clear { grid-area: 1 / 1; }
+.notes-head.picked .notes-sort { grid-area: 1 / 2; }
+.notes-head.picked #notes-label {
+  grid-area: 2 / 1 / 3 / 3; margin-left: 1rem; white-space: normal; overflow: visible; overflow-wrap: anywhere;
+  text-transform: none; letter-spacing: 0; font-size: var(--text-note); line-height: 1.3; color: var(--text);
+  font-family: var(--sans); font-weight: 600; /* (the list's title, as a title: not a label's mono) */
+}
+/* An agent's mark (#369, #514, ui/reach.js): its letter on its color. Drawn here (data-i): the
+   mark holds no text. */
+/* (#560: its name, lowercase, in a mono badge: filled with ink for an agent, outlined for a
+   script. Where there's no room for names (data-compact), its letter, the same way.) */
+.reach { display: inline-flex; align-items: center; gap: 3px; margin-left: 0.35em; vertical-align: middle; position: relative; top: -0.08em; line-height: 1; }
+.reach-badge, .reach-more {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  height: 1.45em; padding: 0 0.4em; border: 1px solid var(--text); background: var(--text); color: var(--bg);
+  font: 400 var(--text-xs)/1 var(--mono); font-style: normal; letter-spacing: 0; text-transform: lowercase; white-space: nowrap;
+}
+.reach-badge::before { content: attr(data-name); }
+.reach-more::before { content: attr(data-i); }
+.reach.compact .reach-badge::before { content: attr(data-i); }
+.reach.compact .reach-badge { padding: 0; width: 1.45em; }
+.reach-badge.script { background: transparent; border-color: var(--border); color: var(--soft); }
+.reach-badge.read { background: transparent; color: var(--text); }
+.reach-more { border-color: var(--border); background: transparent; color: var(--muted); }
+/* Shared with agents, none connected yet: the notebook, not a letter. */
+.reach-none { flex: none; width: 1.15em; height: 1.15em; color: var(--muted); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.tag-clear {
+  justify-self: start; display: inline-flex; align-items: center; gap: 0.15rem; min-height: 1.75rem; padding: 0 0.5rem 0 0.7rem;
+  border: none; border-radius: var(--radius-sm); background: none; color: var(--muted); font-size: var(--text-sm);
+}
+.tag-clear .icon { width: 0.9rem; height: 0.9rem; }
+@media (hover: hover) { .tag-clear:hover { background: var(--hover); color: var(--text); } }
+.tag-clear[hidden] { display: none; }
+@media (pointer: coarse) {
+  .tag-clear { min-height: 44px; font-size: var(--text-md); }
+  .notes-head.picked #notes-label { font-size: var(--text-lg); }
+}
+.notes-more { width: calc(100% - 1rem); margin: 0 0.5rem 0.75rem; color: var(--muted); font-size: var(--text-md); justify-content: center; }
+/* Rows ruled with a hairline (#560), not spaced apart. */
+.note-list {
+  list-style: none; margin: 0; padding: 0 0.5rem 0.5rem;
+  display: grid; align-content: start; gap: 0;
+}
+.note-list > li { border-bottom: 1px solid var(--rule); }
+.note-list .list-empty { padding: 0.6rem 0.5rem; color: var(--muted); font-size: var(--text-md); }
+/* Row text lines up with the logo above (0.5rem list + 0.5rem row padding). */
+.note-list button {
+  width: 100%; text-align: left; background: none; border: none; border-radius: var(--radius-sm);
+  padding: 0.6rem 0.5rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 0.5rem; row-gap: 0.1rem;
+}
+.note-list button > * { grid-column: 1; }
+/* Shared with agents (#514): their letters, at the row's top right. */
+.note-list button > .row-marks { grid-column: 2; grid-row: 1; align-self: center; font-size: var(--text-md); }
+.row-marks .reach { margin: 0; top: 0; }
+.note-list button:hover:not([aria-current='true']) { background: var(--hover); }
+.note-list button[aria-current='true'] { background: var(--selected); box-shadow: inset 2px 0 0 var(--text); }
+.note-list button:focus-visible { outline-offset: -2px; }
+.note-list .title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.note-list .title.untitled { color: var(--muted); font-weight: 400; font-style: italic; }
+.note-list .when { font: var(--text-xs) var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Its tags, after its date (#350): one line, however many. */
+.note-list .row-tags { color: var(--soft); }
+.note-list li { position: relative; }
+.note-list li.rising { z-index: 1; background: var(--bg); }  /* sliding up over the others */
+/* A row's actions are a right-click or a long press away (app.js rowMenu): no system callout over it. */
+.note-list li > button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.note-list li > button[aria-expanded='true']:not([aria-current='true']) { background: var(--hover); }
+/* Your button in the footer: avatar, name, a caret; as wide as those (a long name is cut short), not the footer. */
+.account {
+  position: relative; display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 0 1 auto; max-width: 100%;
+  background: none; border: none; padding: 0.3rem 0.5rem 0.3rem 0.3rem; border-radius: var(--radius-sm);
+}
+.account:hover, .account[aria-expanded='true'] { background: var(--hover); }
+.avatar {
+  flex: none; width: 1.75rem; height: 1.75rem; border-radius: 0; display: grid; place-items: center;
+  background: var(--selected); color: var(--text); font-size: var(--text-sm); font-weight: 600;
+}
+/* No name set: a person, not a letter. */
+.avatar.anonymous::before {
+  content: ''; width: 0.95rem; height: 0.95rem; background: var(--muted);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='5' r='3'/%3E%3Cpath d='M2 15c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.account-name { font-size: var(--text-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account .caret { flex: none; color: var(--muted); }
+/* New note in the footer (phones): the screen's one call to action, filled with the theme's blue
+   (the focus colour), its words in the page's own colour (light on the light theme's blue, dark
+   on the dark theme's lighter one). */
+.new-pill {
+  flex: none; align-items: center; gap: 0.45rem; height: 2.6rem; padding: 0 0.95rem; border-radius: 0;
+  background: var(--focus); border: 1px solid var(--focus); color: var(--bg); font-size: var(--text-md); font-weight: 600;
+}
+.new-pill:hover { filter: brightness(1.06); }
+.new-pill:active { filter: brightness(0.92); }
+.new-pill .icon { width: 1.2rem; height: 1.2rem; }
+#note-more .icon { width: 1.15rem; height: 1.15rem; }
+#note-more { display: inline-flex; align-items: center; padding-inline: 0.5rem; }
+#note-more:not([hidden])::after { content: '\200b'; } /* (a text line's height, like Share beside it) */
+#note-more .icon { stroke-width: 2.2; }
+/* "More": ⋮ on desktop, ⋯ on phones (as iOS's own), in the app and on a shared note's page (#197). */
+:is(#note-more, #guest-more) .dots-across { display: none; }
+@media (max-width: 720px) {
+  :is(#note-more, #guest-more) .dots-down { display: none; }
+  :is(#note-more, #guest-more) .dots-across { display: inline; }
+}
+/* ---- Recently deleted (#190, ui/trash.js): a place in the app. Picked, it's in the notes' place
+   in the sidebar (its label, and All notes back, as a tag's); one of its notes is in the note's
+   place, a page to read (not edit), a bar saying where it is and for how long, Restore and
+   Delete forever. A phone: the list a screen, the note another, its actions at the bottom. ---- */
+.trash-about, .trash-list, .trash-forever { display: none; }
+.trash-mode .trash-about { display: block; }
+.trash-mode .trash-list { display: grid; }
+.trash-mode .trash-forever:not([hidden]) { display: block; }
+.trash-mode :is(#note-list, #notes-more, #chips, #notes-about, #view-switch, #btn-trash-foot) { display: none !important; }
+.trash-about { margin: 0 1rem 0.4rem; font-size: var(--text-sm); line-height: 1.45; color: var(--muted); }
+.trash-list .when.soon { color: var(--warn); } /* (3 days or fewer left) */
+.trash-forever .title { color: var(--muted); }
+#btn-trash[aria-current='page'] { background: var(--selected); }
+#btn-trash[aria-current='page'] .icon { color: var(--text); }
+.editor-pane.trash-open :is(.note-body, #note-head, #empty, #presence, #note-preview, #note-mode, #note-history, #note-share, #note-agents, #note-more, #save-status) { display: none !important; }
+.trash-view {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
+  align-items: center; column-gap: 0.75rem; padding-top: 0.75rem;
+}
+.trash-view[hidden] { display: none; }
+.trash-bar {
+  grid-area: 1 / 1; min-width: 0; display: flex; align-items: center; gap: 0.55rem; margin-left: 1.5rem; padding: 0.5rem 0.8rem;
+  border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); font-size: var(--text-sm); line-height: 1.4;
+}
+.trash-bar p { margin: 0; }
+.trash-bar .icon { flex: none; width: 1rem; height: 1rem; }
+.trash-actions { grid-area: 1 / 2; display: flex; align-items: center; gap: 0.5rem; padding-right: 1.5rem; }
+.trash-actions button { white-space: nowrap; }
+.trash-page, .trash-message { grid-area: 2 / 1 / 3 / 3; align-self: stretch; }
+.trash-page { color: color-mix(in srgb, var(--text) 88%, var(--muted)); } /* (a little quieter than a note you can edit) */
+.trash-page[hidden], .trash-message[hidden] { display: none; }
+.trash-message { display: grid; place-content: center; justify-items: center; gap: 0.35rem; padding: 2rem; text-align: center; color: var(--muted); }
+.trash-message p { margin: 0; max-width: 26rem; line-height: 1.5; }
+.trash-message .trash-message-title { color: var(--text); font-weight: 600; }
+/* (Nothing picked, a computer: the message alone.) */
+.trash-view.none :is(.trash-bar, .trash-actions) { display: none; }
+@media (max-width: 720px) {
+  /* (The list's label says where you are, with All notes back: not the row as well.) */
+  .trash-mode .sidebar-scroll > .sidebar-actions { display: none; }
+  .trash-view { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; padding-top: 0.5rem; }
+  .trash-bar { margin: 0 1rem; align-items: flex-start; }
+  .trash-bar .icon { margin-top: 0.1rem; }
+  .trash-page, .trash-message { grid-area: 2 / 1; }
+  .trash-actions {
+    grid-area: 3 / 1; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border); background: var(--surface);
+  }
+  .trash-actions button { flex: 1; min-height: 48px; font-size: var(--text-base); border-radius: var(--radius); }
+  #trash-restore { flex: 1.3; }
+}
+
+/* A small dropdown, placed by app.js next to the button that opened it. */
+.menu {
+  position: fixed; z-index: 50; min-width: 9rem; padding: 0.25rem; display: grid; /* (over everything on the page, the hidden sidebar slid out too: z-index 40) */
+  background: var(--surface); border: 1px solid var(--text); border-radius: var(--radius); box-shadow: var(--shadow); /* (over the page: an ink edge, #560) */
+}
+/* (Its items in the menu's face, Delete's too: not a danger button's mono.) */
+.menu button { text-align: left; background: none; border: none; padding: 0.5rem 0.75rem; font-family: inherit; font-size: var(--text-md); }
+/* A note's menu: an icon before each item; Share's state (Live, Reconnecting) at its right,
+   with the sharing light; on phones, who's here at the top. */
+#note-menu { min-width: 13rem; }
+#account-menu { min-width: 12rem; }
+:is(#note-menu, #account-menu, #guest-menu) button { display: flex; align-items: center; gap: 0.6rem; }
+:is(#note-menu, #account-menu, #guest-menu) button[hidden] { display: none; }
+:is(#note-menu, #account-menu, #guest-menu) .icon { flex: none; width: 1.05rem; height: 1.05rem; }
+:is(#note-menu, #account-menu, #guest-menu) button:not(.danger) .icon { color: var(--muted); }
+/* An icon drawn on a 24-unit grid (Lucide's): the same stroke weight as the 16-unit ones. */
+.icon.g24 { stroke-width: 2.25; stroke-linejoin: round; }
+.menu-sep { height: 1px; margin: 0.25rem 0; background: var(--border); }
+.menu-live { margin-left: auto; padding-left: 1rem; display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--text-sm); color: var(--muted); }
+.menu-live[hidden] { display: none; }
+/* Share, and "and with agents" under it when it is (#514). */
+.menu-words { display: grid; min-width: 0; }
+.menu-sub { font-size: var(--text-xs); color: var(--muted); }
+.menu-sub[hidden] { display: none; }
+.menu-live::before { content: ''; width: 0.5rem; height: 0.5rem; border-radius: 0; background: var(--muted); }
+:root[data-live='on'] .menu-live::before { background: var(--ok); }
+.menu-people { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.75rem 0.55rem; margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--muted); }
+.menu-people[hidden] { display: none; }
+.menu-people .faces { display: flex; flex: none; }
+.menu:not([hidden]) { animation: pop-in 0.12s ease-out; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+.sidebar-foot { padding: 0.6rem 0.75rem 0.6rem 0.5rem; border-top: 1px solid var(--border); display: grid; gap: 0.5rem; }
+.meter { height: 4px; border-radius: 0; background: var(--track); overflow: hidden; }
+.setting .meter { margin-top: 0.35rem; }
+/* Settings at one end, Lock at the other, so neither is tapped by mistake. */
+.foot-actions { justify-content: space-between; align-items: center; flex-wrap: nowrap; }
+.icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+#meter-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+
+.editor-pane { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); }
+/* The note bar's buttons (History, Share, More): plain icons; a soft square shows
+   only under the pointer, while pressed, while its menu is open, or with keyboard focus. */
+#note-history, #note-share, #note-more { background-color: transparent; border-color: transparent; }
+#note-history:active, #note-share:active, #note-more:active,
+#note-more[aria-expanded='true'], .editor-head button:focus-visible { background-color: var(--hover); }
+/* The bar above an open note: Share / Shared, who else is here (and "← Notes" on phones).
+   Every note has it, so the text starts at the same height whichever note is open,
+   and nothing moves when people come and go. */
+.editor-head { display: none; align-items: center; gap: 0.75rem; justify-content: flex-end; }
+/* Preview (#302, ui/reading.js): on a phone a toggle, lit while the page shows; elsewhere Edit / Preview. */
+.view-toggle { display: inline-flex; align-items: center; gap: 0.35rem; flex: none; }
+.view-toggle[hidden], .view-switch[hidden] { display: none; }
+.view-toggle .icon { width: 1rem; height: 1rem; }
+.view-toggle .pencil, .view-toggle.to-edit .eye { display: none; } /* (#538: Edit while it's the page, Preview while it's the editor) */
+.view-toggle.to-edit .pencil { display: block; }
+.view-switch { display: inline-flex; flex: none; gap: 0; padding: 0; border: 1px solid var(--border); }
+.view-switch button { border: none; background: transparent; color: var(--muted); padding: 0.2rem 0.65rem; border-radius: 0; font: var(--text-sm) var(--mono); }
+.view-switch button[aria-checked='true'] { background: var(--text); color: var(--bg); font-weight: 600; }
+.view-switch button[hidden] { display: none; }
+/* The editor and Preview, one at a time, or side by side in Split (#302). */
+.note-body { flex: 1; min-height: 0; display: flex; }
+.note-body:not(:has(> :not([hidden]))) { display: none; } /* (no note open: the empty state has the room) */
+.note-body > * { flex: 1 1 0; min-width: 0; box-sizing: border-box; }
+.note-body[data-view='split'] > #editor, .note-body[data-view='split'] > .reading { flex: 0 0 50%; }
+.note-body[data-view='split'] > .reading { border-left: 1px solid var(--border); }
+/* Others in a shared note, on the page (ui/reading.js renderPeers): a marker in their colour, with an
+   initial, in the margin beside their cursor's block; a block someone else just changed lights up and fades. */
+.reading { position: relative; }
+.reading > .layer { position: absolute; top: 0; left: 0; width: 0; height: 0; margin: 0; max-width: none; pointer-events: none; }
+.reading .peer {
+  position: absolute; width: 18px; height: 18px; border-radius: 0; display: grid; place-items: center;
+  font: 700 var(--text-2xs)/1 var(--sans); color: #fff; background: var(--yc, var(--muted)); transition: top 120ms ease-out;
+}
+.reading .just-changed { animation: just-changed 1.2s ease-out; border-radius: var(--radius-xs); }
+/* What an app wrote today (#389, authorship.js): a bar in the margin, and at the top of a run its
+   badge (the app's initial, as in Settings → Connections); who and when on hover. In the editor, a
+   faint tint too, each line its own. On the page, one bar a run (#477, ui/reading.js renderRuns),
+   in the margin's gutter left of the text column, wherever its blocks are indented, and no tint. */
+/* Each app in its colour (#486, authorship.js appMark): Claude clay, Codex jade, Gemini and ChatGPT
+   violet, Cursor ochre (#482), another neutral. */
+[data-tone] { --app: var(--reach-1); }
+[data-tone="codex"] { --app: var(--reach-2); }
+[data-tone="gemini"], [data-tone="chatgpt"] { --app: var(--reach-3); }
+[data-tone="cursor"] { --app: var(--reach-4); }
+[data-tone="other"] { --app: var(--muted); }
+/* (#560: every writer the same grey band and rule; its letter in the margin, mono, says who.) */
+#editor .cm-line.app-edit { position: relative; background: var(--mark); }
+#editor .cm-line.app-edit::after {
+  content: ''; position: absolute; left: -0.75rem; top: 0; bottom: 0; width: 2px; background: var(--faint);
+}
+.reading .app-run { position: absolute; left: -0.75rem; width: 2px; background: var(--faint); }
+#editor .cm-line.app-edit-start::before, .reading .app-run::before {
+  content: attr(data-app); position: absolute; left: -2.1rem; top: 0.25em; width: 1.05rem; height: 1.05rem;
+  display: flex; align-items: center; justify-content: center; color: var(--muted);
+  font: 400 var(--text-xs)/1 var(--mono); font-style: normal; text-transform: lowercase;
+}
+.reading .app-run::before { left: -1.35rem; } /* (from the bar, itself 0.75rem out: as far out as the editor's) */
+/* (A phone's margin is too narrow for the badge: the bar only; the note's bar has the app's chip, which says who.) */
+@media (max-width: 720px) { .reading .app-run::before { display: none; } }
+@keyframes just-changed { from { background-color: color-mix(in srgb, var(--accent) 22%, transparent); } to { background-color: transparent; } }
+/* Text someone else put in at once, still to be typed in (#480, ui/reading.js typeIn): in its place, unpainted. */
+::highlight(arriving) { color: transparent; text-decoration-color: transparent; }
+/* Tags on the page (#308): each a tint you can tap (its notes, in the list); a line of only tags,
+   as under a title, as a row of them. (Inline, not flex: the spaces between stay text, in place.) */
+.reading a .tag { padding: 0; background: none; } /* (in a link's text: the link's) */
+.reading p.tags { font-size: 0.9em; line-height: 2; }
+/* (In Split, the block the cursor is in, tinted on the page.) */
+.reading .cursor-block { background: var(--hover); box-shadow: 0 0 0 0.3em var(--hover); }
+.notes.editing .editor-head { display: flex; }
+.editor-head button { white-space: nowrap; flex: none; }
+/* The open note's title, at the bar's left; cut short with "…" when there's no room. */
+.note-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.note-title.untitled { color: var(--muted); font-weight: 500; }
+/* History, Share and More sit close together, as one group (their squares show only on hover). */
+#note-history:not([hidden]) + #note-share, #note-share:not([hidden]) + #note-more { margin-left: -0.5rem; }
+/* A shared note's status light (the app's Shared button, the guest page's "You can edit"):
+   green while live (others' edits and cursors arrive at once), grey while reconnecting
+   (html[data-live], set by app.js and guest.js). */
+.live-light { display: inline-flex; align-items: center; gap: 0.45rem; }
+.live-light::before {
+  content: ''; flex: none; width: 0.5rem; height: 0.5rem; border-radius: 0;
+  background: var(--muted); transition: background-color 0.3s, box-shadow 0.3s;
+}
+:root[data-live='on'] .live-light::before { background: var(--ok); }
+/* The note bar's Share: an icon, and while the note is shared the same light as a dot on its corner. */
+#note-share { position: relative; display: inline-flex; align-items: center; padding-inline: 0.5rem; }
+#note-share .icon { width: 1.15rem; height: 1.15rem; }
+#note-share.shared::after {
+  content: ''; position: absolute; top: -0.2rem; right: -0.2rem; width: 0.6rem; height: 0.6rem; border-radius: 0;
+  background: var(--muted); box-shadow: 0 0 0 2px var(--surface); transition: background-color 0.3s;
+}
+:root[data-live='on'] #note-share.shared::after { background: var(--ok); }
+/* Shared with agents (#514): a pill in the note's bar, their letters and the words (a phone: the
+   letters); it opens Share, where it's switched. */
+.agents-pill {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.7rem 0.2rem 0.35rem; border-radius: 0;
+  border: 1px solid var(--border); background: transparent; color: var(--soft);
+  font-size: var(--text-sm); white-space: nowrap;
+}
+.agents-pill[hidden] { display: none; }
+#note-share.beside-agents { display: none; } /* (not shared with people: the pill opens Share) */
+@media (max-width: 720px) {
+  .agents-pill { padding: 0.35rem; font-size: var(--text-md); }
+  .agents-pill .pill-words { display: none; }
+}
+#btn-back { margin-right: auto; }
+/* Save problems, in the editor's bottom-left corner (shown only for errors, see renderStatus). */
+.status {
+  position: absolute; left: 0.75rem; bottom: 0.75rem; max-width: calc(100% - 1.5rem);
+  padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); box-shadow: var(--shadow); font-size: var(--text-sm); color: var(--text);
+  display: flex; align-items: baseline; gap: 0.5rem; pointer-events: none;
+}
+.status::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 0; background: var(--danger); }
+.status[data-state='too-large']::before { background: var(--warn); }
+
+/* Editing on a phone (#290, textarea.js): a plain textarea, the OS's own keyboard, selection and scrolling. */
+#editor .note-textarea {
+  flex: 1; min-height: 0; width: 100%; box-sizing: border-box; margin: 0; border: 0; outline: 0; resize: none;
+  background: transparent; color: var(--text); font: var(--text-note)/1.7 var(--sans);
+  /* (Room after the end as the page has: a line near the end can come to the top in both, #302.) */
+  /* (No more than the editor's box holds, --ta-fit: textarea.js fitEndRoom.) */
+  padding: 1.25rem var(--gutter) min(var(--ta-end), var(--ta-fit, 100vh)); overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+#editor .note-textarea::placeholder { color: var(--muted); }
+/* Others' cursors over the textarea (#302, textarea.js drawPeers): a line in their colour, their name above it. */
+#editor .peer-carets { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#editor .peer-caret { position: absolute; width: 2px; margin-left: -1px; background: var(--yc, var(--muted)); }
+#editor .peer-name {
+  position: absolute; bottom: 100%; left: -1px; padding: 0 0.3rem; border-radius: var(--radius-xs) var(--radius-xs) var(--radius-xs) 0; white-space: nowrap;
+  font: 600 var(--text-2xs)/1.5 var(--sans); color: #fff; background: var(--yc, var(--muted));
+}
+
+/* The note's header (#581, ui/notehead.js): its frontmatter folded into a title and a line of tag
+   badges, in the text's column (the editor's width, in its em), over a hairline. */
+.note-head {
+  --gutter: 2rem; flex: none; position: relative; box-sizing: content-box; font-size: var(--text-note);
+  width: min(40em, 100% - 2 * var(--gutter)); margin-inline: auto; padding: 1.5rem 0 0;
+}
+.note-head[hidden] { display: none; }
+.note-head-title {
+  display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 0; border: 0; outline: 0; background: transparent;
+  color: var(--text); font: 650 1.4em/1.3 var(--sans); text-overflow: ellipsis;
+}
+.note-head-title::placeholder { color: var(--faint); }
+.note-head-title:focus-visible { box-shadow: inset 0 -1px 0 var(--focus); }
+/* One line: the tags scroll sideways in their own row (a swipe, or a wheel), faded at an edge with
+   more past it; + tag and yaml › stay put after them. */
+.note-head-props {
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; padding: 0.5rem 0 0.6rem; border-bottom: 1px solid var(--rule);
+  font: var(--text-xs)/1 var(--mono); color: var(--muted);
+}
+.note-head-label { flex: none; color: var(--faint); margin-right: 2px; }
+.note-head-tags {
+  display: flex; gap: 6px; flex: 0 1 auto; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.note-head-tags::-webkit-scrollbar { display: none; }
+.note-head-tags:empty { display: none; }
+.note-head-tags.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent); }
+.note-head-tags.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 1.5rem), transparent); }
+.note-head-tags.more-left.more-right { mask-image: linear-gradient(to right, transparent, #000 1.5rem, #000 calc(100% - 1.5rem), transparent); }
+.head-tag-add, .note-head-yaml { flex: none; }
+.head-tag { flex: none; display: inline-flex; align-items: stretch; border: 1px solid var(--border); }
+.head-tag button, .head-tag-add, .note-head-yaml {
+  min-height: 22px; padding: 0 6px; border: 0; background: transparent; color: var(--soft); font: inherit; cursor: pointer;
+}
+.head-tag-name:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.head-tag-x { padding: 0 5px 0 0; color: var(--faint); }
+.head-tag-x:hover { color: var(--text); }
+.head-tag-add { border: 1px dashed var(--border); color: var(--muted); }
+.head-tag-add:hover, .head-tag-add[aria-expanded='true'] { border-style: solid; border-color: var(--text); color: var(--text); }
+.note-head-yaml { margin-left: auto; color: var(--faint); }
+.note-head-yaml:hover, .note-head-yaml[aria-pressed='true'] { color: var(--text); }
+@media (pointer: coarse) {
+  .head-tag button, .head-tag-add, .note-head-yaml { min-height: 32px; } /* (a finger's, without the line towering over the title) */
+  .head-tag-x { min-width: 32px; padding: 0; } /* (the × a finger's width with the name beside it) */
+  .head-tag-name { padding: 0 4px 0 8px; }
+}
+.tag-picker {
+  position: absolute; z-index: 30; left: 0; top: 100%; width: min(16rem, 100%); margin-top: -1px;
+  border: 1px solid var(--text); background: var(--bg); font: var(--text-sm)/1.4 var(--mono);
+}
+.tag-picker[hidden] { display: none; }
+.tag-picker-input {
+  display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 6px 10px; border: 0; border-bottom: 1px solid var(--border);
+  outline: 0; background: transparent; color: var(--text); font: inherit;
+}
+.tag-picker-list { list-style: none; margin: 0; padding: 0; max-height: 15rem; overflow-y: auto; }
+.tag-picker-list[hidden] { display: none; }
+.tag-picker-list li { display: flex; gap: 8px; padding: 5px 10px; cursor: pointer; color: var(--soft); }
+.tag-picker-list li.on { background: var(--hover); box-shadow: inset 2px 0 0 var(--text); color: var(--text); }
+.tag-picker-list .tp-n { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  .note-head { --gutter: 1rem; padding-top: 1rem; }
+  /* (#592: in the note's area, over the top of what scrolls, moved up with it: ui/notehead.js.
+     The text leaves it room, --head-h, the header's height.) */
+  .note-body > .note-head { position: absolute; top: 0; left: 0; right: 0; z-index: 2; }
+  .note-body:has(> .note-head) { overflow: hidden; } /* (moved up past its top: out of sight, not over the bar) */
+  .note-body #editor .note-textarea, .note-body .reading { padding-top: calc(var(--head-h, 0px) + 1rem); }
+  .note-body #editor .cm-content { padding-top: calc(var(--head-h, 0px) + 1.25rem); }
+  /* The bar's title: only once the big one has scrolled away (or there's none). */
+  .editor-pane #note-title { transition: opacity 0.15s; cursor: pointer; }
+  .editor-pane:not(.title-in-bar) #note-title { opacity: 0; }
+}
+@media (max-width: 720px) and (prefers-reduced-motion: reduce) { .editor-pane #note-title { transition: none; } }
+/* (yaml › shows the block in the editor: only where the editor is, not over Preview.) */
+.editor-pane:has(.note-body[data-view='preview']) #note-head-yaml { display: none; }
+/* (Over Preview: the page's column, a little wider than the editor's, #291.) */
+.editor-pane:has(.note-body[data-view='preview']) .note-head { width: min(42rem, 100% - 2 * var(--gutter)); font-size: var(--text-note); }
+/* (The text under a header starts closer: the header is its top.) */
+.note-head:not([hidden]) ~ .note-body #editor .cm-content { padding-top: 1rem; }
+.note-head:not([hidden]) ~ .note-body .note-textarea, .note-head:not([hidden]) ~ .note-body .reading { padding-top: 1rem; }
+
+/* The note editor (CodeMirror 6, see editor.js), styled like a plain page of text. */
+#editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#editor .cm-editor { flex: 1; min-height: 0; background: transparent; color: var(--text); }
+#editor .cm-editor.cm-focused { outline: none; }
+#editor .cm-scroller {
+  font-family: var(--sans); font-size: var(--text-note); line-height: 1.7;
+  overscroll-behavior: contain;
+}
+/* The text column: centred, at most --text-width wide (in em of the editor's
+   text, so about 80 characters a line, the comfortable range for reading).
+   Room at the end, so a save problem shown in the corner never covers the
+   last line. */
+#editor { --text-width: 40em; }
+/* (The page's blocks each take the width: in rem, so a heading's box is a paragraph's and their left edges line up, #291.) */
+.reading { --text-width: 42rem; }
+/* Room after a note's last line (#200): its end can be scrolled up to eye level, not left at the bottom edge. */
+#editor { --end-room: calc(max(4rem, 40dvh) + var(--keyboard, 0px)); --ta-end: max(4rem, 40dvh); } /* (and a phone's keyboard, while it's open: editor.js) */
+/* A note shorter than the view (a new one): no room after it to scroll into, only a little margin
+   (and the keyboard's, while it's open); the room comes back once it's taller (editor.js and
+   textarea.js mark it short). */
+#editor.short { --end-room: calc(2rem + var(--keyboard, 0px)); --ta-end: 2rem; }
+/* While you type, the browser keeps the cursor as far from the bottom as the editor does (#200:
+   a quarter, at least 3rem), and a line more: a new line puts the cursor a line lower before the
+   editor scrolls. Otherwise Safari on iPhone, keeping it in view its own way, moved the whole page
+   down a little with each new line (#232). Not while you tap: a line you tap stays put (#214). */
+#editor.typing .cm-scroller { scroll-padding-bottom: calc(max(3rem, 25%) + 2rem); }
+/* The content box is the column itself, not padding around it: a selection of whole lines
+   is drawn to the content box's edges, and should stay in the column. (Clicks in the
+   margins beside it still place the cursor on that line.) */
+#editor, .reading { --gutter: 2rem; }
+#editor .cm-content {
+  /* (border-box: its padding is only above and below, so the width is the same; and CodeMirror's
+     min-height of the view's then counts the padding in, so a short note doesn't scroll by it.) */
+  box-sizing: border-box; flex-grow: 0; margin-inline: auto;
+  width: min(var(--text-width), 100% - 2 * var(--gutter)); padding: 2rem 0 var(--end-room);
+}
+#editor .cm-line { padding: 0; }
+/* CodeMirror draws the cursor and selection (drawSelection, see editor.js), so the
+   cursor is the text's height on empty lines too. No caret-color or ::selection
+   here: they would bring back the browser's own on top. */
+/* ---- Preview: the note as a page (#283, #302); a tap edits there (ui/reading.js, render.js) ---- */
+.reading {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  /* (The editor's size and line height, #306: a paragraph wraps at the same words in both, and is as tall.) */
+  padding: 1.25rem var(--gutter) max(4rem, 40dvh); font-size: var(--text-note); line-height: 1.7; overflow-wrap: anywhere;
+  --code-bg: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.reading > * { max-width: var(--text-width); margin-inline: auto; }
+.reading p, .reading ul, .reading ol, .reading blockquote, .reading pre, .reading table { margin-block: 0 0.9em; }
+.reading h1, .reading h2, .reading h3, .reading h4, .reading h5, .reading h6 { font-weight: 700; line-height: 1.3; margin-block: 0.9em 0.45em; }
+.reading > :first-child { margin-top: 0; }
+.reading h1 { font-size: 1.7em; } .reading h2 { font-size: 1.35em; } .reading h3 { font-size: 1.15em; } .reading h4, .reading h5, .reading h6 { font-size: 1em; }
+.reading li > p { margin: 0; }
+/* A line break typed in a paragraph is a line break on the page (#317), as in the editor: the
+   "breaks" reading most notes apps use (markdown proper reads it as a space). Spaces still collapse. */
+.reading p, .reading li.task > label { white-space: pre-line; }
+.reading ul, .reading ol { padding-left: 1.4em; }
+.reading li.task { list-style: none; margin-left: -1.4em; }
+.reading li.task > label { display: flex; align-items: baseline; gap: 0.5em; }
+.reading li.task input { accent-color: var(--accent); width: 1.05em; height: 1.05em; margin: 0; flex: none; position: relative; top: 0.15em; }
+.reading li.task.done > label { color: var(--muted); text-decoration: line-through; }
+.reading code { font-family: var(--mono); font-size: 0.88em; background: var(--code-bg); border-radius: var(--radius-xs); padding: 0.1em 0.3em; }
+.reading pre { font-family: var(--mono); font-size: 0.88em; background: var(--code-bg); border-radius: var(--radius-xs); padding: 0.5em 0.8em; overflow-x: auto; white-space: pre; }
+.reading pre code { background: none; padding: 0; font-size: 1em; }
+.reading blockquote { border-left: 3px solid var(--border); padding-left: 0.9em; color: color-mix(in srgb, var(--text) 82%, var(--muted)); }
+.reading a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.reading s { color: var(--muted); }
+.reading hr { border: 0; border-top: 1px solid var(--border); margin: 1.2em auto; }
+.reading table { border-collapse: collapse; width: 100%; font-size: 0.95em; }
+.reading th, .reading td { text-align: left; vertical-align: top; padding: 0.4em 0.6em; border-bottom: 1px solid var(--border); }
+.reading th { border-bottom-color: var(--muted); }
+.reading th.right, .reading td.right { text-align: right; }
+.reading th.center, .reading td.center { text-align: center; }
+
+/* ---- the editor's markdown (markdown.js): the text as it is, and a link's card ---- */
+/* The link card under a link the cursor is in: where it goes, Open and Copy (markdown.js). */
+#editor .cm-tooltip { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); }
+/* The link card stands out from the note (#181): a step lighter, a clearer edge, and a shadow
+   (dark mode too); the link it's about is highlighted while it's open. */
+#editor .cm-tooltip.md-linkcard { background: var(--surface); border-color: var(--text); box-shadow: var(--card-shadow); }
+#editor .md-link-active { background: color-mix(in srgb, var(--focus) 18%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 18%, transparent); }
+#editor .md-linkcard { display: flex; align-items: center; gap: 0.35rem; max-width: min(28rem, calc(100vw - 2rem)); padding: 0.3rem 0.35rem 0.3rem 0.7rem; font-family: var(--sans); font-size: var(--text-sm); line-height: 1.4; }
+#editor .md-linkcard-url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+#editor .md-linkcard-note { color: var(--warn); white-space: nowrap; }
+#editor .md-linkcard button { flex: none; }
+/* Its Edit form (#194): the link's text and address, then Cancel and Save. */
+#editor .md-linkcard.editing { display: grid; gap: 0.5rem; width: min(24rem, calc(100vw - 2rem)); padding: 0.75rem; }
+#editor .md-linkcard-field { display: grid; gap: 0.2rem; font-size: var(--text-xs); color: var(--muted); }
+#editor .md-linkcard-field input { width: 100%; font-size: var(--text-md); padding: 0.4rem 0.55rem; color: var(--text); }
+#editor .md-linkcard-actions { display: flex; justify-content: flex-end; gap: 0.4rem; }
+/* Type / for a menu (#311, slashmenu.js): under the cursor's line (over it near a phone's keyboard). */
+#editor .slash-menu {
+  position: absolute; z-index: 5; width: min(20rem, calc(100% - 1rem)); box-sizing: border-box; padding: 0.25rem;
+  display: grid; gap: 0.1rem; background: var(--surface); color: var(--text); overflow-y: auto; overscroll-behavior: contain;
+  border: 1px solid var(--text); border-radius: var(--radius); box-shadow: var(--card-shadow);
+  font: var(--text-md)/1.3 var(--sans); user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+#editor .slash-menu[hidden] { display: none; }
+#editor .slash-option {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 2.1rem;
+  padding: 0 0.6rem; border-radius: var(--radius-xs); cursor: pointer;
+}
+#editor .slash-option[aria-selected='true'] { background: var(--selected); }
+#editor .slash-label { font-weight: 600; white-space: nowrap; }
+#editor .slash-detail { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (hover: hover) { #editor .slash-option:hover { background: color-mix(in srgb, var(--text) 6%, transparent); } #editor .slash-option[aria-selected='true']:hover { background: var(--selected); } }
+@media (pointer: coarse) { #editor .slash-option { min-height: 44px; font-size: var(--text-base); } }
+#editor .cm-cursor, #editor .cm-dropCursor { border-left-color: var(--text); }
+#editor .cm-placeholder { color: var(--muted); }
+#editor .cm-selectionBackground { background: color-mix(in srgb, var(--focus) 22%, transparent); }
+#editor .cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground { background: color-mix(in srgb, var(--focus) 30%, transparent); }
+/* Text selected on a touch screen: iOS draws it, highlight and handles, in the accent colour (the
+   caret's), and the editor's own isn't drawn over it (#196). iOS draws its highlight whatever
+   ::selection says, and the two never quite lined up: a band of one showed past the other's edge.
+   (A cursor is still the editor's: the text's height on an empty line too.) */
+@media (hover: none) and (pointer: coarse) {
+  #editor.selecting .cm-focused .cm-selectionLayer { display: none; }
+  #editor.selecting .cm-content, #editor.selecting .cm-content .cm-line { caret-color: var(--accent) !important; }
+}
+/* (Its handles where it draws them itself: when the note isn't focused, iOS's aren't there.) */
+#editor .cm-selectionHandle { background-color: var(--accent); width: 2px; }
+#editor .cm-selectionHandle-start::before, #editor .cm-selectionHandle-end::before { width: 12px; height: 12px; left: -5px; }
+#editor .cm-selectionHandle-start::before { top: -11px; }
+#editor .cm-selectionHandle-end::before { bottom: -11px; }
+#editor .loading .cm-content { cursor: progress; }
+.empty { flex: 1; display: grid; place-content: center; justify-items: center; gap: 1rem; color: var(--muted); }
+.empty-detail { max-width: 32rem; padding: 0 1rem; text-align: center; font-family: var(--mono); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.empty-detail.plain { font-family: inherit; font-size: var(--text-md); } /* (a sentence, not an error's text: #299) */
+
+.banner {
+  position: fixed; z-index: 10; bottom: calc(1rem + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+  width: min(calc(100% - 2rem), 640px);
+  display: flex; gap: 1rem; align-items: flex-start;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--danger); border-left-width: 4px; border-radius: var(--radius);
+  padding: 0.9rem 1rem; box-shadow: var(--shadow); font-size: var(--text-md);
+}
+.banner p { color: var(--muted); margin-top: 0.25rem; }
+.banner.info { border-color: var(--accent); align-items: center; }
+
+/* The page couldn't start, or broke (boot.js): over everything, with a Reload button. */
+.fatal {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-content: center; justify-items: center; gap: 0.75rem;
+  padding: 2rem 1rem; text-align: center; background: var(--bg); color: var(--text);
+}
+.fatal p { max-width: 32rem; color: var(--muted); }
+.fatal .fatal-detail { font-family: var(--mono); font-size: var(--text-sm); overflow-wrap: anywhere; }
+
+/* A short message at the bottom ("Note deleted · Undo"), over the note list, above its Settings/Lock row. */
+.toast {
+  position: fixed; z-index: 15; bottom: calc(4.75rem + env(safe-area-inset-bottom)); left: 1rem;
+  max-width: calc(100% - 2rem); display: flex; align-items: center; gap: 0.75rem;
+  background: var(--text); color: var(--bg); border-radius: var(--radius);
+  padding: 0.5rem 0.75rem 0.5rem 1rem; box-shadow: var(--shadow); font: var(--text-sm) var(--mono);
+}
+.toast button.ghost { color: var(--bg); font-weight: 600; text-decoration: underline; border-color: transparent; }
+.toast:not([hidden]) { animation: pop-in 0.15s ease-out; }
+.banner .row { flex: none; flex-wrap: nowrap; }
+@media (max-width: 480px) {
+  .banner.info { flex-wrap: wrap; }
+  .banner.info .row { margin-left: auto; }
+}
+.banner button { flex-shrink: 0; }
+/* Phones, the list showing (#319): above its footer, as a toast is — not over New note and your
+   account (a new vault's "Save your recovery phrase" hid them). In a note there's no footer. */
+@media (max-width: 720px) {
+  :root:has(#view-notes:not([hidden]):not(.editing)) .banner { bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+}
+#update-banner button { margin-left: auto; align-self: center; }
+/* Next to the sidebar, centre it over the editor instead of the whole window. */
+@media (min-width: 721px) {
+  .banner {
+    left: calc(50% + var(--sidebar-width) / 2);
+    width: min(calc(100% - var(--sidebar-width) - 2rem), 640px);
+  }
+  .guest .banner { left: 50%; width: min(calc(100% - 2rem), 640px); } /* no sidebar there */
+}
+
+dialog {
+  width: min(calc(100vw - 2rem), 480px);
+  max-height: calc(100dvh - 2rem); overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); color: var(--text);
+  padding: 1.5rem; box-shadow: var(--shadow);
+}
+/* Dialogs fade and settle in, and fade out on close (where the browser can
+   animate leaving the top layer; elsewhere they just close). */
+dialog, dialog::backdrop {
+  transition: opacity 0.16s ease-out, transform 0.16s ease-out,
+    overlay 0.16s ease-out allow-discrete, display 0.16s ease-out allow-discrete;
+}
+dialog { opacity: 0; transform: translateY(6px) scale(0.98); }
+dialog[open] { opacity: 1; transform: none; }
+dialog::backdrop { opacity: 0; }
+dialog[open]::backdrop { opacity: 1; }
+@starting-style {
+  dialog[open] { opacity: 0; transform: translateY(6px) scale(0.98); }
+  dialog[open]::backdrop { opacity: 0; }
+}
+
+/* Settings: sections of grouped rows, name and status on the left, actions on the right. */
+.settings { display: grid; gap: 1.5rem; }
+.settings-head { display: flex; justify-content: space-between; align-items: center; }
+.settings-head h2 { margin: 0; }
+.icon-btn {
+  display: grid; place-items: center; width: 2.25rem; height: 2.25rem; padding: 0;
+  background: none; border: none; border-radius: var(--radius-sm); color: var(--muted);
+}
+.icon-btn:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.icon-btn .icon { width: 1.1rem; height: 1.1rem; }
+.settings-section { display: grid; gap: 0.6rem; align-content: start; }
+.settings-section > p { margin: 0; }
+/* Sections: the list on the left, the chosen one on the right, at one size (no jump between them). */
+#settings { width: min(calc(100vw - 2rem), 820px); }
+#settings .settings { gap: 1rem; }
+.settings-body { display: grid; grid-template-columns: 13rem minmax(0, 1fr); gap: 1.5rem; height: min(70dvh, 36rem); }
+.settings-nav { display: grid; align-content: start; gap: 2px; }
+.settings-nav button {
+  display: grid; gap: 0.1rem; text-align: left; background: none; border: none; border-radius: var(--radius-sm); padding: 0.55rem 0.7rem;
+}
+.settings-nav button:hover:not([aria-current='true']) { background: var(--hover); }
+.settings-nav button[aria-current='true'] { background: var(--selected); }
+.settings-nav .nav-sub { color: var(--muted); font-size: var(--text-xs); }
+.settings-nav .nav-sub:empty { display: none; }
+.settings-pages { overflow-y: auto; overscroll-behavior: contain; padding-right: 0.25rem; }
+/* More to scroll (#393, settings.js): the edge with more beyond it fades, as the note list does under
+   New note, so a section cut by the dialog's edge reads as going on, not clipped. */
+@media (min-width: 721px) {
+  .settings-pages[data-more='below'] { -webkit-mask-image: var(--fade-below); mask-image: var(--fade-below); }
+  .settings-pages[data-more='above'] { -webkit-mask-image: var(--scroll-fade); mask-image: var(--scroll-fade); }
+  .settings-pages[data-more='both'] { -webkit-mask-image: var(--fade-both); mask-image: var(--fade-both); }
+}
+.section-title { margin: 0 0 0.25rem; font-size: var(--text-note); }
+.settings-section .section-label { margin-top: 0.75rem; }
+.settings-section .section-label:first-of-type { margin-top: 0; }
+.settings-back { display: none; }
+/* A phone: the list of sections, or one of them with ← Settings (app.js, data-level). */
+@media (max-width: 720px) {
+  .settings-body { grid-template-columns: 1fr; height: auto; }
+  #settings[data-level='list'] .settings-pages, #settings[data-level='page'] .settings-nav { display: none; }
+  #settings[data-level='page'] .settings-back { display: inline-block; }
+  #settings[data-level='page'] #settings-title { display: none; }
+  .settings-pages { overflow: visible; padding-right: 0; }
+  .settings-nav button { padding: 0.85rem 0.9rem; border: 1px solid var(--border); background: var(--bg); position: relative; }
+  .settings-nav { gap: 0.5rem; }
+  .settings-nav button::after { content: '›'; position: absolute; right: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: var(--text-lg); }
+  .settings-nav button[aria-current='true'] { background: var(--bg); }
+}
+.group { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); overflow: hidden; }
+.setting {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
+  gap: 0.5rem 0.75rem; padding: 0.85rem 1rem;
+}
+.setting + .setting, #settings-passkey-list:not(:empty) + .setting { border-top: 1px solid var(--border); }
+.setting.stacked { display: grid; gap: 0.25rem; justify-content: stretch; }
+.setting-title { display: block; font-weight: 600; font-size: var(--text-md); color: var(--text); }
+.setting-sub { color: var(--muted); font-size: var(--text-sm); margin-top: 0.1rem; }
+/* Shared notes: other people's cursors, name tags and selections, coloured by
+   palette name (data-ycolor = c0…c7, set by presence.js): y-codemirror is
+   patched to use this instead of inline styles, which the CSP refuses. */
+[data-ycolor='c0'] { --yc: #e5484d; }
+[data-ycolor='c1'] { --yc: #30a46c; }
+[data-ycolor='c2'] { --yc: #0090ff; }
+[data-ycolor='c3'] { --yc: #f76b15; }
+[data-ycolor='c4'] { --yc: #8e4ec6; }
+[data-ycolor='c5'] { --yc: #12a594; }
+[data-ycolor='c6'] { --yc: #d6409f; }
+[data-ycolor='c7'] { --yc: #e2a336; }
+/* Someone else's cursor: a box a line high whose left border is the bar, holding its dot and name
+   tag. (The editor's own is an inline span: in Safari its dot, placed from inside it, stayed behind
+   when text typed before it moved the span, until something redrew it. A box moves as one.) It takes
+   no room: 2px wide, pulled back 1px on each side. */
+#editor .cm-ySelectionCaret {
+  display: inline-block; vertical-align: top; width: 0; height: 1.4em; height: 1lh;
+  margin: 0 -1px; background-color: var(--yc); border-left: 2px solid var(--yc); border-right: none;
+}
+/* The dot and name tag are placed from inside the bar (its 2px border), so
+   offset by it: the dot centred on the bar, the tag flush with its left edge. */
+#editor .cm-ySelectionCaretDot { width: 6px; height: 6px; left: -4px; top: -3px; }
+#editor .cm-ySelection, #editor .cm-yLineSelection { background-color: color-mix(in srgb, var(--yc) 28%, transparent); }
+#editor .cm-ySelectionInfo {
+  font: 600 0.7em/1.4 var(--sans); padding: 1px 5px; border-radius: var(--radius-xs) var(--radius-xs) var(--radius-xs) 0; top: -1.5em; left: -2px; color: #fff;
+}
+/* Who else is in the note: a chip each, in their cursor's colour. */
+/* One line, whatever the number of people (more would add a row and move the text). */
+.presence { display: flex; gap: 0.35rem; flex-wrap: nowrap; overflow: hidden; min-width: 0; margin-left: auto; }
+/* An app that just wrote in the note (#389): its badge and "Claude, just now", for two minutes. */
+.app-here {
+  flex: none; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.1rem 0.55rem 0.1rem 0.15rem; border-radius: 0;
+  font-size: var(--text-xs); font-weight: 600; white-space: nowrap; color: var(--app, var(--reach-1)); background: color-mix(in srgb, var(--app, var(--reach-1)) 14%, transparent);
+}
+.app-here[hidden] { display: none; }
+.app-here::before {
+  content: attr(data-initial); width: 1.1rem; height: 1.1rem; border-radius: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--app, var(--reach-1)); color: var(--reach-ink); font-size: var(--text-2xs); font-weight: 800;
+}
+@media (max-width: 720px) { .app-here { font-size: 0; gap: 0; padding: 0.1rem; } } /* (a phone: the badge only, as others' chips show initials) */
+.presence span { flex: none; font-size: var(--text-xs); font-weight: 600; padding: 0.15rem 0.55rem; border-radius: 0; color: #fff; background: var(--yc, var(--muted)); }
+.presence span.viewing { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+/* Someone arriving grows in, someone leaving fades out (the chips are kept between updates, see presence.js). */
+.presence span { animation: chip-in 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.presence span.leaving { animation: chip-out 0.18s ease-in both; pointer-events: none; }
+@keyframes chip-in { from { opacity: 0; transform: scale(0.7); } }
+@keyframes chip-out { to { opacity: 0; transform: scale(0.7); } }
+/* The page a shared note's link opens (share.html): a header, then the note. */
+/* The window's height, like the app: the note scrolls inside the editor, under a header that
+   stays. (Not a page that grows with the note: the editor's scroller doesn't pass the wheel on
+   to the page, overscroll-behavior: contain, so the wheel did nothing over the text.) */
+.guest { height: 100%; display: flex; flex-direction: column; }
+.guest-head {
+  position: relative; z-index: 2; display: flex; gap: 0.75rem; align-items: center; min-height: 3.5rem;
+  padding: calc(0.5rem + env(safe-area-inset-top)) 1rem 0.5rem;
+  background: var(--surface); /* the note's colour, with no line beneath: as the app's note bar */
+}
+.guest-head .grow { flex: 1; }
+.guest-head .brand { text-decoration: none; color: inherit; flex: none; }
+.guest-sep { flex: none; width: 1px; height: 1.25rem; background: var(--border); }
+.guest-head .note-title { flex: 0 1 auto; }
+.view-pill { flex: none; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.55rem; border: 1px solid var(--border);
+  border-radius: 0; font-size: var(--text-xs); font-weight: 600; color: var(--muted); white-space: nowrap; }
+.view-pill[hidden] { display: none; }
+.view-pill .icon { width: 0.85rem; height: 0.85rem; }
+.add-btn { flex: none; display: inline-flex; align-items: center; gap: 0.4rem; }
+.add-btn[hidden] { display: none; }
+.add-btn .icon { width: 0.95rem; height: 0.95rem; }
+/* ⋮ (⋯ on phones), with the live light on its corner (always: this note is shared). */
+#guest-more { position: relative; flex: none; width: 2.4rem; height: 2.4rem; padding: 0; display: inline-grid; place-items: center;
+  background-color: transparent; border-color: transparent; }
+#guest-more[hidden] { display: none; }
+#guest-more[aria-expanded='true'] { background-color: var(--hover); }
+#guest-more .icon { width: 1.25rem; height: 1.25rem; stroke-width: 2.4; }
+#guest-more::before {
+  content: ''; position: absolute; top: 0.35rem; right: 0.25rem; width: 0.55rem; height: 0.55rem; border-radius: 0;
+  background: var(--muted); box-shadow: 0 0 0 2px var(--surface); transition: background-color 0.3s;
+}
+:root[data-live='on'] #guest-more::before { background: var(--ok); }
+/* Its menu: what this link lets you do, and whether it's live; then your name, typed in place. */
+#guest-menu { min-width: 15rem; }
+#guest-mode::after { content: ' · Reconnecting'; }
+:root[data-live='on'] #guest-mode::after { content: ' · Live'; }
+.menu-name { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0.4rem 0.6rem; padding: 0.5rem 0.75rem; font-size: var(--text-md); }
+.menu-name .icon { width: 1.05rem; height: 1.05rem; color: var(--muted); }
+.menu-name input { grid-column: 1 / -1; width: 100%; }
+#guest-menu .mobile-only { display: none; } /* (Add to my notes is in the bar on desktop) */
+@media (max-width: 720px) { #guest-menu .mobile-only { display: block; } #guest-menu button.mobile-only { display: flex; } }
+/* A plain statement in a card (signups closed): not an error, not a button. */
+.notice { margin: 0; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); font-size: var(--text-md); }
+.status-text { font-size: var(--text-sm); color: var(--muted); }
+.guest-editor { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--surface); }
+.guest-name { padding: 0.35rem 0.55rem; font-size: var(--text-md); }
+/* Its place is kept from the start (a chip's height; a line of its own on phones), so the note doesn't move when people arrive. */
+.guest-head .presence { margin-left: 0; min-height: 1.45rem; align-items: center; }
+/* Phones: the logo, the title centred, initials, ⋯ (Add to my notes moves into it). */
+@media (max-width: 720px) {
+  .guest-head { padding-inline: 0.5rem 0.5rem; }
+  .guest-head .brand-name, .guest-sep, .guest-head .view-pill, .guest-head .add-btn { display: none; }
+  .guest-head .note-title { position: absolute; left: 50%; transform: translateX(-50%); max-width: calc(100% - 13rem); text-align: center; }
+  .guest-head .presence { max-width: 4.5rem; }
+}
+/* Phones, others in the note (#318): the title gives way to their initials. Centred over the
+   whole bar it ran under them, cut mid-word; now it fills the room between the bar's left and
+   them, centred there, an ellipsis before it reaches them. The same for an app's chip, "Claude,
+   just now" (#482: a long title ran under it), and for the agents' letters of a note shared with
+   them (#514: the title ran under them). */
+@media (max-width: 720px) {
+  :is(.editor-head, .guest-head):has(.presence:not([hidden]):not(:empty), .app-here:not([hidden]), .agents-pill:not([hidden])) .note-title {
+    position: static; transform: none; max-width: none; flex: 1 1 0;
+  }
+  .editor-head .agents-pill { flex: none; } /* (whole: the title gives way) */
+  :is(.editor-head, .guest-head):has(.presence:not([hidden]):not(:empty)) .presence { flex: none; } /* (whole: the title gives way) */
+  .guest-head:has(.presence:not([hidden]):not(:empty)) .grow { display: none; }
+}
+.guest-message { margin: 3rem 1rem; display: grid; gap: 0.5rem; text-align: center; }
+/* The note spans the window under its bar, as in the app: the wheel scrolls it anywhere, and
+   its text keeps to a column in the middle (#editor .cm-content). A message is a card. */
+.guest-message { align-self: center; width: min(calc(100% - 2rem), 40rem); }
+@media (min-width: 721px) {
+  .guest-head { padding-inline: 1.5rem; }
+  .guest-message { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 3rem 1.5rem; }
+}
+/* Share dialog: a link and its Copy button on one line. */
+.share-link { display: flex; gap: 0.5rem; align-items: center; }
+.share-link input { flex: 1; min-width: 0; font-family: var(--mono); font-size: var(--text-sm); }
+/* Who has a note (#369): a row each, apps first (their badge), then people with a link of their
+   own (their initial); what they can do under the name; Manage, or Copy link and Remove. */
+.stack.tight { gap: 0.4rem; }
+#share-dialog .section-label { margin: 0.25rem 0 0; }
+/* Agents (#514): a switch, first in Share; their letters, what it means, on or off. */
+.share-agents { margin-bottom: 0.25rem; }
+.share-agents .setting { flex-wrap: nowrap; justify-content: flex-start; cursor: pointer; }
+.share-agents .setting-words { flex: 1; min-width: 0; }
+.share-agents-marks { flex: none; display: inline-flex; font-size: var(--text-lg); }
+.share-agents-marks .reach { margin: 0; top: 0; }
+.share-agents[hidden] { display: none; }
+input[type='checkbox'].switch {
+  appearance: none; flex: none; position: relative; width: 2.75rem; height: 1.6rem; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 0;
+  /* (Off: a faint track, so it reads as a switch at one end, not a checked box.) */
+  background: color-mix(in srgb, var(--muted) 16%, transparent); cursor: pointer; transition: background-color 150ms;
+}
+input[type='checkbox'].switch::before {
+  content: ''; position: absolute; top: calc(0.2rem - 1px); left: calc(0.2rem - 1px); width: 1.2rem; height: 1.2rem; border-radius: 0;
+  background: var(--muted); transition: transform 150ms, background-color 150ms;
+}
+input[type='checkbox'].switch:checked { background: var(--text); border-color: var(--text); }
+input[type='checkbox'].switch:checked::before { background: var(--bg); }
+input[type='checkbox'].switch:checked::before { transform: translateX(1.15rem); }
+input[type='checkbox'].switch:disabled { opacity: 0.5; cursor: default; }
+@media (prefers-reduced-motion: reduce) { input.switch, input.switch::before { transition: none; } }
+.share-holders { list-style: none; margin: 0; padding: 0; }
+.share-holders:empty { display: none; }
+.share-holder { padding: 0.7rem 1rem; }
+.share-holder + .share-holder { border-top: 1px solid var(--divider); }
+.share-holder-head { display: flex; align-items: center; gap: 0.6rem; }
+.share-holder-head button { flex: none; }
+.share-holder-head .reach-badge { width: 1.5rem; height: 1.5rem; font-size: var(--text-md); }
+.share-holder-initial {
+  flex: none; display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 0;
+  background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); font-size: var(--text-xs); font-weight: 700;
+}
+.share-holder-words { flex: 1 1 0; min-width: 0; display: grid; }
+.share-holder-name { min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-holder-what { font-size: var(--text-xs); color: var(--muted); min-width: 0; }
+.share-person-add { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.4rem; }
+.share-person-add input { flex: 1; min-width: 0; }
+@media (max-width: 480px) {
+  .share-person-add { flex-wrap: wrap; }
+  .share-person-add input { flex-basis: 100%; }
+}
+/* Renaming a passkey: the name turns into a field in place. */
+.setting input.rename { width: 100%; font-weight: 600; font-size: var(--text-md); padding: 0.25rem 0.5rem; }
+/* The name side gives way first; actions only wrap below when even a short name won't fit. */
+.setting > div:first-child { flex: 1 1 7rem; min-width: 0; }
+.setting-actions { display: flex; flex: none; gap: 0.5rem; margin-left: auto; }
+.setting-actions button { background: var(--btn); border-color: var(--raised-edge); }
+.warn { color: var(--warn); }
+@media (max-width: 480px) {
+  dialog { padding: 1.25rem; }
+  .setting { padding: 0.75rem 0.85rem; }
+}
+dialog::backdrop { background: var(--scrim); }
+.settings > .error:empty { display: none; } /* (no gap kept for an error not there) */
+
+/* ---- Dialogs, one look (#338) ----
+   The dialog over the dimmed app, its cards one step up (never sunk into it); a header with the
+   title and close, a line under it; the chosen thing raised, not tinted; colour only where it
+   means something (the accent: the main action; red: what can't be undone, armed). */
+dialog { background: var(--dialog); border-color: var(--text); box-shadow: var(--dialog-shadow); }
+.settings-head { margin: -1.5rem -1.5rem 0; padding: 0.75rem 0.75rem 0.75rem 1.5rem; border-bottom: 1px solid var(--divider); }
+.settings-head h2 { font-size: var(--text-note); font-weight: 600; }
+/* A dialog opens on its title (autofocus: read out first), not its close button, which drew a focus ring at once. */
+.settings-head h2:focus { outline: none; }
+.section-label { font-size: var(--text-xs); letter-spacing: 0.06em; }
+.group { background: var(--raised); border-color: var(--raised-edge); border-radius: var(--radius-lg); }
+.setting + .setting, #settings-passkey-list:not(:empty) + .setting, #settings-passkey-list .setting + .setting { border-top-color: var(--divider); }
+dialog :is(input, select, textarea) { background: var(--raised); border-color: var(--raised-edge); }
+.group :is(input, select, textarea) { background: var(--field); border-color: var(--raised-edge); }
+.group .words li { background: var(--field); }
+/* A button in a dialog: its own step, on the dialog or in a card (the main action, a link, a quiet one, an icon keep theirs). */
+:where(dialog) button:where(:not(.primary, .danger-fill, .link, .ghost, .icon-btn)) { background-color: var(--btn); border-color: var(--raised-edge); }
+/* Delete my account: red only once it's armed (DELETE typed); until then, a button that can't be pressed. */
+button.danger-fill:disabled { background: var(--btn); border-color: var(--raised-edge); color: var(--muted); opacity: 1; }
+/* The chosen section (and version): raised like a card, the name bold; no tint. */
+/* (dialog …: over the dialogs' own rules further on, which tint them.) */
+dialog .settings-nav button[aria-current='true'], dialog .history-list button[aria-current='true'] { background: var(--raised); box-shadow: inset 0 0 0 1px var(--raised-edge); }
+dialog .settings-nav button[aria-current='true'] > span:first-child { font-weight: 600; }
+@media (max-width: 480px) {
+  .settings-head { margin: -1.25rem -1.25rem 0; padding-left: 1.25rem; }
+}
+/* Phones: Settings is a screen of its own, its sections one card of rows (60 px, a chevron each). */
+@media (max-width: 720px) {
+  #settings {
+    width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; inset: 0;
+    border: none; border-radius: 0; padding: calc(1.25rem + env(safe-area-inset-top)) 1rem calc(1.25rem + env(safe-area-inset-bottom));
+  }
+  /* (The keyboard up: as tall as what's above it, from where that starts: its header in sight.) */
+  :root[data-keyboard] #settings { top: var(--visible-top, 0px); bottom: auto; height: var(--visible-height); max-height: var(--visible-height); margin: 0; padding-top: 1.25rem; }
+  :root[data-keyboard] #settings .settings-head { margin-top: -1.25rem; padding-top: 0.5rem; }
+  #settings .settings-head { margin: calc(-1.25rem - env(safe-area-inset-top)) -1rem 0; padding: calc(0.5rem + env(safe-area-inset-top)) 0.5rem 0.5rem 1rem; }
+  /* (Its header stays at the top as a section scrolls under it, ‹ Settings and × in reach, #361.) */
+  #settings .settings-head { position: sticky; top: calc(-1.25rem - env(safe-area-inset-top)); z-index: 2; background: var(--dialog); }
+  :root[data-keyboard] #settings .settings-head { top: -1.25rem; } /* (the dialog's own top padding, as it is then) */
+  #settings .settings-nav { gap: 0; background: var(--raised); border: 1px solid var(--raised-edge); border-radius: var(--radius-lg); overflow: hidden; }
+  #settings .settings-nav button { border: none; border-radius: 0; background: none; min-height: 60px; padding: 0.7rem 2.25rem 0.7rem 1rem; box-shadow: none; }
+  #settings .settings-nav button + button { border-top: 1px solid var(--divider); }
+  #settings .settings-nav button > span:first-child { font-weight: 600; }
+  #settings .settings-back, #history-back { color: var(--accent); text-decoration: none; }
+}
+
+/* Small uppercase label above a group (settings sections). */
+.section-label { margin: 0; color: var(--muted); font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+
+/* Steps of a multi-screen flow: a name and a bar for each, filled up to the current one.
+   Earlier steps are buttons back to them while that's still possible. */
+.stepper ol {
+  list-style: none; margin: 0 0 0.25rem; padding: 0;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0.5rem;
+}
+.stepper li { display: grid; align-content: end; gap: 0.4rem; }
+.stepper li::after {
+  content: ''; height: 3px; border-radius: 0;
+  background: linear-gradient(var(--accent), var(--accent)) left / 0% 100% no-repeat, var(--track);
+  transition: background-size 0.3s ease-out;
+}
+.stepper li.done::after, .stepper li.current::after { background-size: 100% 100%; }
+.stepper .step-name {
+  display: flex; gap: 0.3rem; align-items: baseline; padding: 0; background: none; border: none;
+  text-align: left; font-size: var(--text-sm); font-weight: 600; color: var(--muted); transition: color 0.3s;
+}
+.stepper .done .step-name, .stepper .current .step-name { color: var(--text); }
+.stepper .done .step-name::before { content: '✓'; color: var(--accent); }
+.stepper .step-name:disabled { opacity: 1; cursor: default; }
+.stepper .step-name:hover:not(:disabled) { background-image: none; color: var(--accent); }
+.links { display: grid; justify-items: center; }
+
+/* Passkey screen: one big button with a title and a line under it. */
+.choice {
+  display: grid; gap: 0.25rem; text-align: left; align-content: start;
+  padding: 1rem; border-radius: var(--radius); background: var(--surface);
+}
+.choice:hover:not(:disabled) { border-color: var(--accent); }
+.choice-title { font-weight: 600; font-size: var(--text-base); }
+.choice-sub { color: var(--muted); font-size: var(--text-sm); }
+
+.mobile-only { display: none; }
+@media (max-width: 720px) {
+  .notes { grid-template-columns: 1fr; }
+  .notes.editing .sidebar { display: none; }
+  .notes:not(.editing) .editor-pane { display: none; }
+  .sidebar { border-right: none; }
+  .editor-head { display: flex; }
+  .mobile-only { display: inline-block; }
+  /* The note bar: a chevron back to the list, the title centred, and one ⋯ (with the
+     sharing light) for everything else; others in the note as overlapping initials. */
+  .editor-head { position: relative; padding-inline: 0.5rem; }
+  #btn-back { display: inline-flex; align-items: center; justify-content: center; width: 2.6rem; height: 2.6rem; padding: 0; }
+  #btn-back .icon { width: 1.3rem; height: 1.3rem; stroke-width: 1.8; stroke-linejoin: round; }
+  .note-title { position: absolute; left: 50%; transform: translateX(-50%); max-width: calc(100% - 13rem); text-align: center; }
+  .editor-head #note-history, .editor-head #note-share { display: none; }
+  .presence { max-width: 4.5rem; }
+  #note-more { position: relative; width: 2.6rem; height: 2.6rem; padding: 0; justify-content: center; }
+  #note-more:not([hidden])::after { content: none; }
+  #note-more .icon { width: 1.3rem; height: 1.3rem; stroke-width: 2.4; }
+  #note-more.shared::before {
+    content: ''; position: absolute; top: 0.4rem; right: 0.3rem; width: 0.6rem; height: 0.6rem; border-radius: 0;
+    background: var(--muted); box-shadow: 0 0 0 2px var(--surface); transition: background-color 0.3s;
+  }
+  :root[data-live='on'] #note-more.shared::before { background: var(--ok); }
+  :is(.editor-head, .guest-head) .presence { gap: 0; }
+  :is(.editor-head, .guest-head) .presence span, .menu-people .faces span {
+    width: 1.65rem; height: 1.65rem; padding: 0; border-radius: 0; display: block; text-align: center; line-height: 1.65rem;
+    font-size: 0; box-shadow: 0 0 0 2px var(--surface);
+  }
+  :is(.editor-head, .guest-head) .presence span::before, .menu-people .faces span::before { content: attr(data-initial); font-size: var(--text-xs); font-weight: 700; }
+  :is(.editor-head, .guest-head) .presence span + span, .menu-people .faces span + span { margin-left: -0.45rem; }
+  .menu-people .faces span { color: #fff; background: var(--yc, var(--muted)); }
+  .menu-people .faces span.viewing { color: var(--muted); border: 1px solid var(--border); }
+  :is(.editor-head, .guest-head) .presence span.viewing, .menu-people .faces span.viewing { background: var(--surface); line-height: calc(1.65rem - 2px); } /* (covers the one beneath) */
+  /* New note leaves the top of the list for a pill at the footer's right, beside your account. */
+  .sidebar-new { display: none; }
+  .sidebar-scroll > .sidebar-actions { padding-top: 0.5rem; }
+  .new-pill.mobile-only { display: inline-flex; }
+  #editor, .reading { --gutter: 1rem; }
+  #editor .cm-content { padding: 1.25rem 0 var(--end-room); }
+}
+
+/* "Reduce motion": dialogs, menus and the stepper change without animating. */
+@media (prefers-reduced-motion: reduce) {
+  dialog, dialog::backdrop, .stepper li::after, .stepper .step-name { transition: none; }
+  .menu:not([hidden]) { animation: none; }
+  .presence span, .presence span.leaving { animation: none; }
+  #history-dialog .appear { animation: none; }
+}
+
+/* History (#60, #340): the versions by day on the left, each saying what it changed; the chosen one
+   on the right as the note read then, its changes marked, and Restore. A phone: a screen of its own,
+   the list, then a version with ‹ Versions (ui/history.js, .previewing). */
+#history-dialog { width: min(calc(100vw - 2rem), 960px); }
+#history-dialog .settings { gap: 0; }
+.history-note { flex: 1; min-width: 0; margin: 0 0.5rem 0 0.75rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-body { display: grid; grid-template-columns: 17rem minmax(0, 1fr); margin: 0 -1.5rem -1.5rem; height: min(70dvh, 38rem); }
+/* Loading, none yet or offline: the same size as the versions will be, so the dialog doesn't jump when they arrive. */
+.history-message { margin: 0 -1.5rem -1.5rem; height: min(70dvh, 38rem); display: grid; place-content: center; justify-items: center; gap: 0.35rem; padding: 1.5rem; text-align: center; color: var(--muted); }
+.history-message p { margin: 0; max-width: 24rem; line-height: 1.5; }
+/* Nothing to list (none yet, offline): a small dialog round its message, not the big one empty (#358). */
+@media (min-width: 721px) {
+  #history-dialog.brief { width: min(calc(100vw - 2rem), 30rem); }
+  #history-dialog.brief .history-message { height: auto; padding: 2rem 1.5rem 2.5rem; }
+}
+.history-message .history-message-title { color: var(--text); font-weight: 600; }
+/* Versions, their text and what they changed fade in as they arrive (ui/history.js appear), not pop up. */
+@keyframes history-in { from { opacity: 0; } }
+#history-dialog .appear { animation: history-in 150ms ease-out; }
+
+/* The versions: by day; each its time, the lines it added and removed, and what it changed, in a line. */
+.history-versions { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.6rem; border-right: 1px solid var(--divider); }
+.history-list, .history-list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.history-list { gap: 0; }
+.history-day { margin: 0; padding: 0.9rem 0.75rem 0.3rem; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.history-list button { width: 100%; display: grid; gap: 0.1rem; text-align: left; padding: 0.55rem 0.75rem; background: none; border: none; border-radius: var(--radius); }
+/* (Where there's a pointer: a touch leaves :hover on what's under it, the row where ⋯'s History was.) */
+@media (hover: hover) { .history-list button:hover:not([aria-current='true']) { background: var(--hover); } }
+dialog .history-list button[aria-current='true'] { background: var(--raised); box-shadow: inset 0 0 0 1px var(--raised-edge); }
+.history-row-top { display: flex; align-items: baseline; gap: 0.5rem; }
+.history-row-top .reach-badge { align-self: center; font-size: var(--text-sm); } /* (an app's changes in it, #389) */
+.history-time { font-weight: 600; }
+.history-by { flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* (who: "Claude · amber fox", #505) */
+.history-sum { display: flex; gap: 0.4rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.history-sum .plus { color: var(--ok); }
+.history-sum .minus { color: var(--danger); }
+.history-what { font-size: var(--text-sm); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-burst-head, .history-list .history-more { width: 100%; display: grid; gap: 0.1rem; text-align: left; padding: 0.55rem 0.75rem; background: none; border: none; border-radius: var(--radius); }
+.history-burst-head .history-time::after { content: ' ›'; color: var(--muted); }
+.history-burst-head[aria-expanded='true'] .history-time::after { content: ' ⌄'; }
+.history-burst-rows { padding-left: 0.75rem !important; border-left: 2px solid color-mix(in srgb, var(--reach-1) 50%, transparent); margin-left: 0.75rem !important; }
+.history-burst-rows[hidden] { display: none !important; }
+.history-list .history-more { color: var(--accent); font-size: var(--text-sm); }
+.history-forget { align-self: flex-start; margin: 0 0.75rem 0.6rem; padding: 0.2rem 0; font-size: var(--text-xs); color: var(--danger); }
+.history-about { margin: auto 0 0; padding: 1rem 0.75rem 0.4rem; font-size: var(--text-xs); line-height: 1.45; color: var(--muted); }
+
+/* The chosen version: when, what it changed in words, its text; Copy and Restore under it. */
+.history-pane { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; min-height: 0; padding: 1.1rem 1.5rem 1.25rem; }
+.history-head { display: flex; align-items: flex-start; gap: 0.75rem; }
+.history-heading { flex: 1; min-width: 0; }
+/* (Its two lines keep their room while a version loads.) */
+.history-when { margin: 0; min-height: 1lh; font-size: var(--text-base); font-weight: 600; }
+.history-when:focus { outline: none; }
+.history-since { margin: 0.15rem 0 0; min-height: 1lh; font-size: var(--text-sm); color: var(--muted); }
+#history-fold { flex: none; color: var(--muted); }
+#history-fold:hover { color: var(--text); background-image: none; }
+.history-diff {
+  position: relative; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.6rem 0.4rem;
+  background: var(--raised); border: 1px solid var(--raised-edge); border-radius: var(--radius-lg); line-height: 1.55;
+}
+.history-diff:focus { outline: none; }
+/* Added lines green, removed ones struck through in red, each marked + / − too (not by colour alone). */
+.history-diff .line { display: block; position: relative; min-height: 1.55em; padding: 0.05rem 0.75rem 0.05rem 1.9rem; border-radius: var(--radius-xs); white-space: pre-wrap; overflow-wrap: anywhere; text-decoration: none; }
+.history-diff .line::before { position: absolute; left: 0.7rem; }
+.history-diff .heading { font-weight: 600; }
+.history-diff ins.line { background: var(--diff-add); }
+.history-diff del.line {
+  background: var(--diff-del); color: color-mix(in srgb, var(--danger) 55%, var(--text));
+  text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 70%, transparent);
+}
+.history-diff ins.line::before { content: '+'; color: var(--ok); }
+.history-diff del.line::before { content: '−'; color: var(--danger); }
+.history-diff ins .word { background: var(--diff-add-strong); border-radius: var(--radius-xs); }
+.history-diff del .word { background: var(--diff-del-strong); border-radius: var(--radius-xs); }
+.history-diff .fold {
+  display: flex; align-items: center; gap: 0.4rem; width: 100%; margin: 0.15rem 0; padding: 0.2rem 0.75rem 0.2rem 1.9rem; text-align: left; font-size: var(--text-sm);
+  border: none; border-radius: var(--radius-xs); background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--muted);
+}
+.history-diff .fold:hover { color: var(--text); background-image: none; }
+.history-diff .fold .icon { flex: none; width: 0.9rem; height: 0.9rem; }
+@media (pointer: coarse) { .history-diff .fold { min-height: 44px; } } /* (a finger's) */
+.history-diff .note { margin: 0; padding: 0.25rem 0.75rem; font-size: var(--text-sm); color: var(--muted); }
+.history-actions { display: flex; align-items: center; gap: 0.5rem; }
+.history-hint { flex: 1; min-width: 0; margin: 0; font-size: var(--text-xs); color: var(--muted); }
+/* An icon only: a zero-width character gives it a text line's height, like Share/Shared beside it. */
+#note-history { display: inline-flex; align-items: center; padding-inline: 0.5rem; }
+#note-history .icon { width: 1.15rem; height: 1.15rem; } /* (the size of Share's and More's) */
+#note-history::after { content: '\200b'; }
+/* Phones: History is a screen of its own, as Settings is: the versions in a card a day (rows of
+   60 px, a chevron each), then a version on its own, Copy and Restore in a bar at the bottom. */
+@media (max-width: 720px) {
+  #history-dialog {
+    width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; inset: 0;
+    border: none; border-radius: 0; padding: 0;
+  }
+  #history-dialog .settings { height: 100%; display: flex; flex-direction: column; }
+  #history-dialog .settings-head { flex: none; margin: 0; padding: calc(0.5rem + env(safe-area-inset-top)) 0.5rem 0.5rem 1rem; }
+  #history-dialog.previewing .settings-head { padding-left: 0.25rem; }
+  #history-dialog.previewing #history-back { display: inline-block; }
+  #history-dialog.previewing :is(#history-title, .history-note) { display: none; }
+  .history-body, .history-message { flex: 1; min-height: 0; height: auto; margin: 0; }
+  .history-body { display: flex; flex-direction: column; }
+  #history-dialog:not(.previewing) .history-pane, #history-dialog.previewing .history-versions { display: none; }
+  .history-versions { flex: 1; border-right: none; padding: 0.25rem 1rem calc(1rem + env(safe-area-inset-bottom)); }
+  .history-day { padding: 1.1rem 0.25rem 0.45rem; }
+  .history-list ul { gap: 0; background: var(--raised); border: 1px solid var(--raised-edge); border-radius: var(--radius-lg); overflow: hidden; }
+  .history-list > li:first-child { margin-top: 0.75rem; }
+  .history-list button { position: relative; min-height: 60px; padding: 0.6rem 2.25rem 0.6rem 1rem; border-radius: 0; }
+  .history-list li + li button { border-top: 1px solid var(--divider); }
+  .history-list button::after { content: '›'; position: absolute; right: 0.9rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: var(--text-lg); }
+  /* (A list to choose from here, not a choice: no row stays raised.) */
+  dialog .history-list button[aria-current='true'] { background: none; box-shadow: none; }
+  .history-time { font-size: var(--text-base); }
+  .history-what { font-size: var(--text-sm); }
+  .history-about { margin: 0; padding: 1rem 0.25rem 0; }
+  .history-pane { flex: 1; gap: 0.6rem; padding: 1rem 1rem 0; }
+  .history-head { flex-wrap: wrap; gap: 0.25rem 0.75rem; }
+  .history-heading { flex-basis: 100%; } /* (Hide unchanged lines under it, not squeezing it) */
+  .history-when { font-size: var(--text-lg); }
+  #history-fold { margin-left: -0.7rem; }
+  /* (As tall as its text, up to the room there is: no big empty card under a short note.) */
+  .history-diff { flex: 0 1 auto; font-size: var(--text-base); }
+  .history-actions { flex-wrap: wrap; margin: auto -1rem 0;padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); border-top: 1px solid var(--divider); }
+  .history-hint { flex-basis: 100%; margin-bottom: 0.15rem; }
+  .history-actions button { flex: 1; min-height: 48px; font-size: var(--text-base); border-radius: var(--radius); }
+  #history-restore { flex: 1.4; }
+}
+
+/* Connections (#369): the list's rows (badge, name, what it has, ›) open one; its page: who it is,
+   its tags (one menu each), "+ Give it a tag", what it did by day, Disconnect last. */
+.connection-row {
+  width: 100%; display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; border: none; background: none;
+  text-align: left; font: inherit; color: var(--text); cursor: pointer;
+}
+.connection-row + .connection-row { border-top: 1px solid var(--divider); }
+.connection-row:hover { background: var(--hover); }
+.connection-row-words { flex: 1; min-width: 0; display: grid; gap: 0.1rem; }
+.connection-row-chev { flex: none; color: var(--muted); font-size: var(--text-lg); line-height: 1; }
+/* (Its name is beside it: the badge, its letter.) */
+.connection-badge { width: 1.75rem; height: 1.75rem; padding: 0; font-size: var(--text-sm); }
+.connection-badge::before { content: attr(data-i); }
+#connections-list { margin-top: 0.75rem; }
+#connections-list[hidden], #connections-none[hidden] { display: none; }
+.add-more { justify-self: start; align-self: flex-start; margin-top: 0.5rem; background: none; border: 1px dashed var(--raised-edge); color: var(--accent); font-weight: 600; }
+.add-more:hover { background: var(--hover); }
+/* A connection's "Sharing with Claude: 1 of 2…": its line kept when empty, so Disconnect under
+   it doesn't move as passes come and go (#436). */
+#connection-status { min-height: 1.4em; min-height: 1lh; }
+#connections-separate { margin: 0.5rem 0 0.75rem; }
+.connection-head { display: flex; align-items: center; gap: 0.75rem; margin: 0.5rem 0 0.75rem; }
+.connection-head .connection-badge { width: 2.25rem; height: 2.25rem; font-size: var(--text-base); }
+.connection-who { flex: 1; min-width: 0; display: grid; gap: 0.1rem; }
+.connection-used { min-height: 1lh; } /* (its room kept while it loads) */
+.connection-name-row { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
+.connection-name-row .section-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.connection-name-row .icon-btn { flex: none; color: var(--muted); }
+.settings-sub-back { padding: 0; }
+.section-label { margin: 1rem 0 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); font: 400 var(--text-xs) var(--mono); text-transform: lowercase; color: var(--muted); }
+.tag-name { color: var(--text); font-family: var(--mono); font-size: 0.92em; }
+.connection-activity-head { display: flex; justify-content: space-between; align-items: baseline; }
+.connection-activity-head .link { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.activity { display: grid; }
+.activity-day { font-size: var(--text-xs); color: var(--muted); padding: 0.5rem 0 0.15rem; }
+.activity-day:first-child { padding-top: 0; }
+.activity-row { display: grid; grid-template-columns: 1.2rem 1fr auto; gap: 0.5rem; align-items: baseline; padding: 0.3rem 0; font-size: var(--text-md); }
+.activity-day + .activity-row { border-top: none; }
+.activity-row + .activity-row { border-top: 1px solid var(--divider); }
+.activity-mark { color: var(--muted); text-align: center; }
+.activity-what { min-width: 0; overflow-wrap: anywhere; }
+.activity-when { color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
+#connection-disconnect { flex: none; align-self: flex-start; margin-top: 0.3rem; padding: 0; text-decoration: none; font-weight: 500; color: var(--danger); }
+#connection-disconnect:hover { text-decoration: underline; }
+.how-to { margin: 0.4rem 0 0.6rem; padding-left: 1.2rem; display: grid; gap: 0.3rem; }
+.how-to[hidden] { display: none; }
+/* (The address and the command: on a line of their own, never broken mid-word.) */
+#connections-none code { word-break: normal; white-space: nowrap; }
+/* The switch to sharing with agents (#514): a checklist of notes, with what reached them. */
+#agents-switch-dialog { width: min(calc(100vw - 2rem), 26rem); }
+.pick-list { list-style: none; margin: 0; padding: 0; max-height: min(50dvh, 22rem); overflow-y: auto; }
+.pick-list[hidden] { display: none; }
+.pick-row + .pick-row { border-top: 1px solid var(--divider); }
+.pick-label { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 1rem; cursor: pointer; color: var(--text); font-size: inherit; }
+.pick-label input { flex: none; width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+.pick-words { flex: 1; min-width: 0; display: grid; }
+/* (Outside the card: in line with the text around them, not indented as a card's rows are.) */
+.connect-name { padding-inline: 0; }
+/* The apps that reach a shared note (#369), in the Share dialog: in the first app's clay. */
+.how-to .address { white-space: nowrap; user-select: all; }
+.how-to .link { margin-left: 0.25rem; }
+#connect-dialog { width: min(calc(100vw - 2rem), 30rem); }

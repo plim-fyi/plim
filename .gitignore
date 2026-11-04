@@ -1,0 +1,11 @@
+target/
+*.db
+*.db-shm
+*.db-wal
+node_modules/
+.env
+dist/
+tools/screenshots/out/
+
+# Claude Code session worktrees
+.claude/worktrees/

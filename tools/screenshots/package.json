@@ -1,0 +1,20 @@
+{
+  "name": "plim-screenshots",
+  "private": true,
+  "description": "The browser checks of every web flow (desktop and iPhone), and the screenshots: every web screen for the map of the screens (tools/screens-map), the README's, docs/SCREENSHOTS-TUI.md's (terminal client), and the link preview image web/og-image.png.",
+  "type": "module",
+  "scripts": {
+    "web": "node web.mjs",
+    "web:shots": "SHOTS=1 node web.mjs",
+    "checks": "node checks.mjs",
+    "tui": "node tui.mjs",
+    "og": "node og.mjs",
+    "shots": "SHOTS=1 node web.mjs && node tui.mjs"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "puppeteer-core": "25.12.0"
+  }
+}

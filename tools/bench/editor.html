@@ -1,0 +1,57 @@
+<!doctype html>
+<!-- Measuring a whole note at once (#220): the app's editor on the long test note, 1 to 20 times
+     over, and how long CodeMirror takes to draw and measure all of it (what measureWholeNote in
+     web/editor/editor-ios.js does), and by how much its estimated height was off. Serve the repo root
+     (serve.mjs) and open /tools/bench/editor.html; on the iPhone simulator, ios.mjs with
+     BENCH_URL. Results as JSON in #out. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Editor bench</title>
+<link rel="stylesheet" href="../../web/style.css">
+<style>
+  body { display: block; height: 100vh; margin: 0; }
+  #editor { height: 70vh; } #out { font: 12px monospace; white-space: pre-wrap; padding: 8px; }
+</style>
+<p id="status">running…</p>
+<div id="editor"></div>
+<pre id="out"></pre>
+<script type="module">
+  import * as Y from '../../web/vendor/yjs.mjs';
+  import { NoteEditor } from '../../web/editor/editor.js';
+  import { measureWholeNote } from '../../web/editor/editor-ios.js';
+
+  const out = document.getElementById('out');
+  const status = document.getElementById('status');
+  const rows = [];
+  const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  try {
+    const sample = await (await fetch('../screenshots/long-note.md')).text();
+    const editor = new NoteEditor(document.getElementById('editor'));
+    for (const copies of [1, 5, 10, 20]) {
+      const text = Array.from({ length: copies }, () => sample).join('\n\n');
+      const ytext = new Y.Doc().getText('t');
+      ytext.insert(0, text);
+      editor.show(ytext);
+      await frame();
+      const view = editor.view;
+      const before = view.scrollDOM.scrollHeight;
+      const t = performance.now();
+      const done = measureWholeNote(view);
+      const measureMs = performance.now() - t;
+      await frame();
+      const after = view.scrollDOM.scrollHeight;
+      // Scrolled through to the end and back, nothing left to find: the height stays.
+      view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
+      await frame();
+      view.scrollDOM.scrollTop = 0;
+      await frame();
+      rows.push({ copies, lines: view.state.doc.lines, chars: text.length, done, measureMs: Math.round(measureMs * 10) / 10, heightBefore: before, heightAfter: after, heightScrolled: view.scrollDOM.scrollHeight });
+      out.textContent = JSON.stringify(rows);
+    }
+    status.textContent = `done: ${navigator.userAgent}`;
+  } catch (e) {
+    status.textContent = `failed: ${e.message}`;
+    console.error(e);
+  }
+  out.dataset.done = '1';
+</script>
