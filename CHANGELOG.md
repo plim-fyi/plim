@@ -4,6 +4,11 @@ Each release of `plim`, newest first. The web app and server aren't numbered: th
 main as each change merges. Each release's binary: [the releases](https://github.com/plim-fyi/plim/releases)
 (from 0.20.0).
 
+## 0.20.1
+
+- **Security:** rustls 0.23.46, the TLS library `plim` talks to its server with. It fixes GHSA-c8m5-c952-6cm4 (a TLS session's debug output could show its secrets; `plim` never prints it) and three low-severity advisories (GHSA-h2v8-394m-p7vv, GHSA-w44r-93j7-qv28, GHSA-vp88-798v-h67f).
+- **On a Mac:** each release now has `plim-macos`, one binary for Apple silicon and Intel ([Terminal client](README.md#terminal-client) says how to install it).
+
 ## 0.20.0
 
 - **Open source.** The server, the web app and the admin dashboard are AGPL-3.0-or-later; the Rust crates (`plim-core`, `plim-cli`, `plim-wasm`) are MIT or Apache-2.0, at your option. The JavaScript libraries the web app bundles keep their MIT licenses (`web/vendor/LICENSES.txt`).
