@@ -69,8 +69,12 @@
   --fade-both: linear-gradient(to bottom, rgb(0 0 0 / 0.35), #000 2rem, #000 calc(100% - 2.5rem), rgb(0 0 0 / 0.2));
 }
 
+/* Dark (#21): when the system is, unless this device chose light (Settings → Appearance,
+   boot.js sets data-theme), and whenever it chose dark: the same colours, below. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #141413;
     --surface: #141413;
     --surface-2: #1c1c1a;
@@ -105,6 +109,42 @@
     --scrim: rgb(0 0 0 / 0.45);
     --dialog-shadow: none;
   }
+}
+/* (The same colours as above, chosen: keep the two in step.) */
+:root[data-theme="dark"] {
+  --bg: #141413;
+  --surface: #141413;
+  --surface-2: #1c1c1a;
+  --text: #e8e8e3;
+  --soft: #b9b9b2;
+  --muted: #9a9a93;
+  --faint: #5c5c57;
+  --border: #34342f;
+  --accent: #e8e8e3;
+  --accent-text: #141413;
+  --focus: #7aa2f7;
+  --mark: #242421;
+  --rule: #262624;
+  --reach-1: #9a9a93;
+  --reach-2: #9a9a93;
+  --reach-3: #9a9a93;
+  --reach-4: #9a9a93;
+  --reach-ink: #141413;
+  --danger: #e0695e;
+  --ok: #6cc27a;
+  --warn: #f2b24b;
+  --hover: rgb(232 232 227 / 0.04);
+  --selected: #1c1c1a;
+  --shadow: none;
+  --card-shadow: none;
+  --dialog: #141413;
+  --raised: #141413;
+  --raised-edge: #34342f;
+  --divider: #262624;
+  --field: #141413;
+  --btn: #141413;
+  --scrim: rgb(0 0 0 / 0.45);
+  --dialog-shadow: none;
 }
 
 * { box-sizing: border-box; }

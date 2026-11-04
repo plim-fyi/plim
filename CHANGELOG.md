@@ -4,6 +4,11 @@ Each release of `plim`, newest first. The web app and server aren't numbered: th
 main as each change merges. Each release's binary: [the releases](https://github.com/plim-fyi/plim/releases)
 (from 0.20.0).
 
+## 0.20.2
+
+- **No plain `http://` to other machines:** `plim` sends nothing to a server whose address is `http://` unless it's on this machine (`localhost`, `127.0.0.1`, `[::1]`), since your session and share keys would cross the network unencrypted (your notes stay encrypted either way). It says so and how to go on: its `https://` address, or `--insecure-http` (`PLIM_INSECURE_HTTP=1`) if you mean it. This holds for `--server`, `PLIM_SERVER`, the signed-in server and links to shared notes.
+- **The connector's `list_grants`** describes what it answers: the notes shared with agents, whatever their tags (it still described tags granted read-only or read & write, as before 0.14.0).
+
 ## 0.20.1
 
 - **Security:** rustls 0.23.46, the TLS library `plim` talks to its server with. It fixes GHSA-c8m5-c952-6cm4 (a TLS session's debug output could show its secrets; `plim` never prints it) and three low-severity advisories (GHSA-h2v8-394m-p7vv, GHSA-w44r-93j7-qv28, GHSA-vp88-798v-h67f).

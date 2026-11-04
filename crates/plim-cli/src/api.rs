@@ -19,13 +19,15 @@ pub enum ApiError {
     Http(u16, String),
     /// The server could not be reached.
     Network(String),
+    /// Not sent: the server is plain http:// and not on this machine (`allowed`).
+    Insecure(String),
 }
 
 impl ApiError {
     pub fn status(&self) -> Option<u16> {
         match self {
             ApiError::Http(s, _) => Some(*s),
-            ApiError::Network(_) => None,
+            ApiError::Network(_) | ApiError::Insecure(_) => None,
         }
     }
 
@@ -39,11 +41,46 @@ impl std::fmt::Display for ApiError {
         match self {
             ApiError::Http(s, m) => write!(f, "server error {s}: {m}"),
             ApiError::Network(m) => write!(f, "can't reach the server: {m}"),
+            ApiError::Insecure(base) => write!(
+                f,
+                "not sending anything to {base}: it's plain http://, so your session and share keys would cross the \
+                 network unencrypted (your notes stay encrypted). Use its https:// address, or, if you mean it, \
+                 --insecure-http (PLIM_INSECURE_HTTP=1). A server on this machine (localhost, 127.0.0.1) is fine."
+            ),
         }
     }
 }
 
 impl std::error::Error for ApiError {}
+
+/// `--insecure-http` (or PLIM_INSECURE_HTTP=1): plain http:// to any server, not only this machine.
+static INSECURE_HTTP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn allow_insecure_http(yes: bool) {
+    INSECURE_HTTP.store(yes, std::sync::atomic::Ordering::Relaxed);
+}
+
+/**
+ * Whether a server address may carry this client's requests (#148): https:// always; plain
+ * http:// only to this machine (localhost, a *.localhost name, 127.0.0.0/8, ::1), or with
+ * --insecure-http. Over plain http:// to anywhere else, the session token, share read tokens and
+ * holder tokens, and request metadata travel in the clear (the notes stay encrypted).
+ */
+pub fn allowed(base: &str, insecure_ok: bool) -> bool {
+    let Ok(url) = reqwest::Url::parse(base) else { return false };
+    match url.scheme() {
+        "https" => true,
+        "http" => {
+            let host = url.host_str().unwrap_or_default().trim_start_matches('[').trim_end_matches(']').to_ascii_lowercase();
+            insecure_ok
+                || match host.parse::<std::net::IpAddr>() {
+                    Ok(ip) => ip.is_loopback(),
+                    Err(_) => host == "localhost" || host.ends_with(".localhost"),
+                }
+        }
+        _ => false,
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct KeyringEntryJson {
@@ -131,6 +168,9 @@ impl Api {
     }
 
     async fn send_with(&self, method: reqwest::Method, path: &str, body: Option<&Value>, headers: &[(&str, &str)]) -> Result<Value, ApiError> {
+        if !allowed(&self.base, INSECURE_HTTP.load(std::sync::atomic::Ordering::Relaxed)) {
+            return Err(ApiError::Insecure(self.base.clone()));
+        }
         let mut req = self.http.request(method, format!("{}/api{path}", self.base));
         for (name, value) in headers {
             req = req.header(*name, *value);
@@ -254,6 +294,34 @@ impl Api {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #148: https:// anywhere; plain http:// only to this machine, or with --insecure-http.
+    #[test]
+    fn plain_http_only_to_this_machine() {
+        for ok in ["https://plim.fyi", "https://notes.example.com:8443/", "http://localhost:3000", "http://LOCALHOST",
+                   "http://plim.localhost:8080", "http://127.0.0.1:3000", "http://127.8.9.10", "http://[::1]:3000"] {
+            assert!(allowed(ok, false), "{ok} should be allowed");
+        }
+        for no in ["http://example.com", "http://plim.fyi", "http://192.168.1.20:3000", "http://10.0.0.5",
+                   "http://[2001:db8::1]", "http://localhost.example.com", "ftp://plim.fyi", "not a url", ""] {
+            assert!(!allowed(no, false), "{no} should be refused");
+        }
+        assert!(allowed("http://192.168.1.20:3000", true), "--insecure-http lets plain http:// through");
+        assert!(!allowed("ftp://plim.fyi", true), "but nothing that isn't http(s)");
+    }
+
+    /// Refused before anything is sent (nothing listens at the address: it isn't tried).
+    #[tokio::test]
+    async fn a_remote_plain_http_server_gets_nothing() {
+        let api = Api::new("http://192.0.2.1:9");
+        match api.get("/account").await {
+            Err(ApiError::Insecure(base)) => assert_eq!(base, "http://192.0.2.1:9"),
+            other => panic!("expected Insecure, got {other:?}"),
+        }
+        let msg = ApiError::Insecure("http://example.com".into()).to_string();
+        assert!(msg.contains("--insecure-http") && msg.contains("https://"), "{msg}");
+        assert!(!ApiError::Insecure(String::new()).is_offline(), "not taken for offline: it wouldn't pass with time");
+    }
 
     /// A command's sessions end with it (#146): the token stops working at once.
     #[tokio::test]

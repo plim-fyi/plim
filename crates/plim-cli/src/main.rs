@@ -48,6 +48,10 @@ struct Cli {
     /// Server URL (default: PLIM_SERVER, the signed-in server, or http://127.0.0.1:3000)
     #[arg(long, global = true)]
     server: Option<String>,
+    /// Allow a plain http:// server that isn't on this machine (PLIM_INSECURE_HTTP=1): the session
+    /// and share keys then cross the network unencrypted. Without it, only https:// and localhost
+    #[arg(long, global = true)]
+    insecure_http: bool,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -228,6 +232,7 @@ enum Command {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    api::allow_insecure_http(cli.insecure_http || config::env("INSECURE_HTTP").is_some_and(|v| v == "1"));
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
         let done = run(cli).await;

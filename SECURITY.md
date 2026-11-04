@@ -25,3 +25,20 @@ be named.
 The README's [Known limitations](README.md#known-limitations) are known trade-offs (such as the
 server delivering the web app's code, and the metadata it sees). A way to make one of them worse
 than it says is in scope.
+
+## Checking what plim.fyi serves
+
+[![Check plim.fyi](https://github.com/plim-fyi/plim-signed-web-deploys/actions/workflows/check.yml/badge.svg)](https://github.com/plim-fyi/plim-signed-web-deploys/actions/workflows/check.yml)
+
+Every deploy of plim.fyi's web app is recorded in public, signed:
+[plim-fyi/plim-signed-web-deploys](https://github.com/plim-fyi/plim-signed-web-deploys) holds the
+files as deployed, a manifest of their hashes, and a signature, by a key used for nothing else and
+kept off the server:
+
+```
+SHA256:1wTlYiGJry6gR+6RFU2RvE8HehErrLGK9+pXu96Tzds  (ED25519, deploys@plim.fyi)
+```
+
+Its `./verify` checks that plim.fyi serves exactly the newest signed deploy, byte for byte, and
+GitHub runs it every hour. A difference it reports, a deploy there not signed by that key, or
+plim.fyi serving something not in the record, is a security problem: report it as above.

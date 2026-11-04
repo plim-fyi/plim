@@ -705,6 +705,7 @@
           <nav class="settings-nav" aria-label="Settings sections">
             <button type="button" data-section="profile"><span>Profile</span><span class="nav-sub" id="settings-nav-profile"></span></button>
             <button type="button" data-section="editor"><span>Editor</span><span class="nav-sub">Markdown, shortcuts</span></button>
+            <button type="button" data-section="appearance"><span>Appearance</span><span class="nav-sub" id="settings-nav-appearance">System</span></button>
             <button type="button" data-section="security"><span>Sign-in &amp; security</span><span class="nav-sub">Passkeys, recovery phrase, auto-lock</span></button>
             <button type="button" data-section="connections"><span>Connections</span><span class="nav-sub" id="settings-nav-connections">None</span></button>
             <button type="button" data-section="storage"><span>Storage</span><span class="nav-sub" id="settings-nav-storage"></span></button>
@@ -739,6 +740,24 @@
               <p class="muted tiny">Notes are written in markdown: <code># Heading</code>, <code>**bold**</code>, <code>- [ ] task</code>. A note opens in the editor, its markdown as it is; Preview shows it formatted, and a click on a word there edits at that word; Split, once turned on above, shows both side by side, scrolling together (Ctrl+/ goes round them, ⌘/ on a Mac). Switching keeps your place.</p>
               <h4 class="section-label">Shortcuts</h4>
               <p class="muted tiny">Ctrl+B bold, Ctrl+I italic, Ctrl+E code, Ctrl+K a link (⌘ on a Mac). Ctrl+Enter ticks a task. A click in a link shows where it goes, to open or copy; Ctrl+click opens it. In a list, Enter starts the next item, Enter on an empty one ends the list, and Tab indents an item.</p>
+            </section>
+
+            <!-- Appearance (#21): the theme, this device only (boot.js applies it before the page is drawn) -->
+            <section class="settings-section" data-section="appearance" aria-labelledby="settings-appearance-label" hidden>
+              <h3 class="section-title" id="settings-appearance-label">Appearance</h3>
+              <div class="group">
+                <div class="setting">
+                  <div>
+                    <label class="setting-title" for="settings-theme">Theme</label>
+                    <div class="setting-sub">Light or dark, or as your system has it. This device only.</div>
+                  </div>
+                  <select id="settings-theme" class="setting-actions">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </div>
+              </div>
             </section>
 
             <section class="settings-section" data-section="security" aria-labelledby="settings-security-label" hidden>

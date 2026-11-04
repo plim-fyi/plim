@@ -67,9 +67,23 @@ loginctl enable-linger $USER          # keep running after you log out
 - Data lives in the volume and survives.
 - Pages already open notice the new version (each API answer names it, as `X-Tiro-Version`) and offer **Plim was updated · Reload**.
 
-**Backups:** the volume holds `tiro.db` (the database's name from before the rename). The image has no shell, so either:
-- stop the container and copy the file out of `podman volume inspect plim-data --format '{{.Mountpoint}}'`, or
-- run `sqlite3 <mountpoint>/tiro.db ".backup plim-backup.db"` while it runs.
+**Backups:** the volume holds `tiro.db` (the database's name from before the rename). The server copies it while it runs, consistently (SQLite's `VACUUM INTO`, checked before it replaces the previous copy):
+
+```sh
+podman exec plim /app/plim-server --backup /data/backup.db   # plim: backed up … integrity ok
+podman cp plim:/data/backup.db ./plim-backup.db              # out of the volume, owned by you
+```
+
+Run it on a timer and send the copy somewhere else (restic, rsync, object storage): it's ciphertext, but account ids, sizes and timing are in it, so keep it encrypted there too. To restore, stop the container and put the copy in its volume as `tiro.db`, owned by the image's user (uid 65532), with no `tiro.db-wal` or `tiro.db-shm` left beside it; then start it:
+
+```sh
+podman stop plim
+mp=$(podman volume inspect plim-data --format '{{.Mountpoint}}')
+podman unshare sh -c "rm -f $mp/tiro.db-wal $mp/tiro.db-shm && cp plim-backup.db $mp/tiro.db && chown 65532:65532 $mp $mp/tiro.db"
+podman start plim
+```
+
+(Into a new volume, that `chown` of the folder matters: podman gives a volume the image's `/data`, owned by 65532, only when it starts out empty.) Devices that saw newer data then show the rollback warning: that's the restore, not an attack.
 
 Backups hold everyone's data as it was: an account deleted since (Settings → Account → Delete account) is still in them until they're replaced. Keep them only as long as you need them, and remember a restore brings deleted accounts back.
 

@@ -127,6 +127,13 @@ async function removePasskeyFromSettings(p, last) {
 }
 
 $('settings-split').addEventListener('change', (e) => setSplitEnabled(e.target.checked));
+// The theme (#21): boot.js keeps it, and applies it at once (here and in other tabs).
+const THEMES = { system: 'System', light: 'Light', dark: 'Dark' };
+const theme = () => window.plimTheme?.get() ?? 'system';
+$('settings-theme').addEventListener('change', (e) => {
+  window.plimTheme?.set(e.target.value);
+  renderSettingsNav();
+});
 $('settings-autolock').addEventListener('change', async (e) => {
   const minutes = Number(e.target.value);
   await kvPut(AUTO_LOCK_KEY, minutes);
@@ -174,9 +181,10 @@ for (const b of $('settings').querySelectorAll('.settings-nav button')) {
 }
 $('settings-back').addEventListener('click', () => ($('settings').dataset.level = 'list'));
 
-/** The list's second lines: your name, storage used. */
+/** The list's second lines: your name, the theme, storage used. */
 export function renderSettingsNav() {
   $('settings-nav-profile').textContent = profile().get('name') || 'Your name';
+  $('settings-nav-appearance').textContent = THEMES[theme()];
   $('settings-nav-storage').textContent = $('storage-text').textContent;
 }
 
@@ -191,6 +199,7 @@ async function openSettings(section) {
   $('settings-name').placeholder = fallbackName(); // what others see until you set one
   $('settings-autolock').value = String(await autoLockMinutes());
   $('settings-split').checked = splitEnabled();
+  $('settings-theme').value = theme();
   await renderPasskeySettings().catch((err) => setError('settings-passkey-error', err));
   renderSettingsNav();
   $('settings').showModal();

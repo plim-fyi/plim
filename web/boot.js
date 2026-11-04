@@ -4,6 +4,50 @@
 // (#134). The page sets `window.plimStarted` once its modules have run, and
 // can call `window.plimFatal(title, error)` itself for a failure later on.
 
+// The theme (#21, Settings → Appearance): light, dark, or as the system has it, this device only.
+// It's set on <html> as data-theme from here, in <head>, before anything is painted, so a page
+// never flashes the other one (style.css's dark colours follow data-theme first, then the
+// system). The browser's own bars (theme-color) and form controls (color-scheme) follow too, and
+// another tab's choice is taken up as it's made. Settings calls window.plimTheme.
+(() => {
+  const KEY = 'plim-theme';
+  const read = () => {
+    try {
+      const v = localStorage.getItem(KEY);
+      return v === 'light' || v === 'dark' ? v : 'system';
+    } catch {
+      return 'system'; // (no storage here: as the system has it)
+    }
+  };
+  // (Each theme-color meta's own colour, by the scheme in its media query: what a choice uses.)
+  const metas = [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => ({ m, own: m.content, media: m.media }));
+  const colour = (scheme) => metas.find((x) => x.media.includes(scheme))?.own;
+  const apply = (choice) => {
+    const root = document.documentElement;
+    if (choice === 'system') delete root.dataset.theme;
+    else root.dataset.theme = choice;
+    for (const x of metas) x.m.content = choice === 'system' ? x.own : colour(choice) ?? x.own;
+    const scheme = document.querySelector('meta[name="color-scheme"]');
+    if (scheme) scheme.content = choice === 'system' ? 'light dark' : choice;
+  };
+  apply(read());
+  addEventListener('storage', (e) => {
+    if (e.key === KEY || e.key === null) apply(read());
+  });
+  window.plimTheme = {
+    get: read,
+    set(choice) {
+      try {
+        if (choice === 'light' || choice === 'dark') localStorage.setItem(KEY, choice);
+        else localStorage.removeItem(KEY);
+      } catch {
+        // (no storage: it holds until this page closes)
+      }
+      apply(choice === 'light' || choice === 'dark' ? choice : 'system');
+    },
+  };
+})();
+
 (() => {
   function show(title, detail) {
     const render = () => {

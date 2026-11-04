@@ -48,6 +48,25 @@ async fn main() {
     if std::env::args().any(|a| a == "--healthcheck") {
         healthcheck();
     }
+    // `plim-server --backup <file>`: a consistent copy of PLIM_DB, made while the server runs.
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(i) = args.iter().position(|a| a == "--backup") {
+        let Some(out) = args.get(i + 1) else {
+            eprintln!("plim: --backup needs a file to write, e.g. --backup /data/backup.db");
+            std::process::exit(2);
+        };
+        let db = Config::from_env().db_path;
+        match plim_server::backup::backup(&db, std::path::Path::new(out)) {
+            Ok(c) => {
+                println!("plim: backed up {db} to {out}: {} bytes, {} accounts, integrity ok", c.bytes, c.accounts);
+                std::process::exit(0);
+            }
+            Err(e) => {
+                eprintln!("plim: backup failed: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
 
     let cfg = Config::from_env();
     let addr = listen_addr();

@@ -149,7 +149,7 @@ pub(crate) fn tools(can_write: bool) -> Vec<Value> {
             "inputSchema": { "type": "object", "properties": {} },
             "annotations": read }),
         json!({ "name": "list_grants", "title": "What you may read and write",
-            "description": "The tags the user granted you, each read-only or read & write: your access, whether or not any note carries the tag yet. Check this when unsure what you can see or change (the user can change it any time).",
+            "description": "What you can reach: the notes the user shares with agents, each readable and editable, whatever its tags, and nothing else of theirs. Check this when unsure what you can see or change (the user can share a note with agents, or stop, any time).",
             "inputSchema": { "type": "object", "properties": {} },
             "annotations": read }),
     ];
@@ -206,5 +206,19 @@ pub(crate) fn with_note(answer: String, note: Option<String>) -> String {
     match note {
         Some(n) => format!("{answer}\n{n}"),
         None => answer,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// What an agent is told list_grants answers matches what it does (#514, taw8): the notes
+    /// shared with agents, not tags granted.
+    #[test]
+    fn list_grants_says_what_an_agent_reaches() {
+        let tools = super::tools(true);
+        let t = tools.iter().find(|t| t["name"] == "list_grants").expect("list_grants offered");
+        let d = t["description"].as_str().unwrap();
+        assert!(d.contains("the notes the user shares with agents"), "{d}");
+        assert!(!d.contains("granted") && !d.contains("read-only"), "no more tags granted read-only or read & write: {d}");
     }
 }

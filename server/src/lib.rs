@@ -2,6 +2,7 @@ pub mod account;
 pub mod admin;
 pub mod assets;
 pub mod auth;
+pub mod backup;
 pub mod connections;
 pub mod db;
 pub mod live;
