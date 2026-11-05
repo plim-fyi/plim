@@ -25,6 +25,7 @@ import './history.test.mjs';
 import './notes.test.mjs';
 import './frontmatter.test.mjs';
 import './export.test.mjs';
+import './import.test.mjs';
 import './offline.test.mjs';
 import './large.test.mjs';
 import './passkey.test.mjs';

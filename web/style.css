@@ -227,6 +227,7 @@ button.danger-fill:disabled { opacity: 0.45; cursor: not-allowed; }
 .delete-body ul { padding-left: 1.2rem; display: grid; gap: 0.2rem; }
 button.link { background: none; border: none; color: var(--muted); padding: 0.35rem 0.5rem; text-decoration: underline; }
 button.link:hover:not(:disabled) { background-image: none; color: var(--text); }
+button.link.inline-link { padding: 0; font: inherit; line-height: inherit; vertical-align: baseline; color: inherit; } /* (in a line of text, as a link would be) */
 /* Quiet: just the label until hovered. */
 button.ghost { background-color: transparent; border-color: transparent; }
 

@@ -39,6 +39,7 @@ import { connectRequest, init as initConsent, showConsent } from './ui/consent.j
 import { maybeShowSwitch } from './ui/agents-switch.js';
 import { setStatus } from './ui/save-status.js';
 import './ui/sidebar.js';
+import './ui/import.js';
 import {
   init as initSharing,
   addSharedFromLink,

@@ -65,6 +65,7 @@ import flow31 from './web/31-a-note-worth-showing.mjs';
 import flow29 from './web/29-line-breaks-on-the-page.mjs';
 import flow33 from './web/33-search.mjs';
 import flow34 from './web/34-export.mjs';
+import flow35 from './web/35-import.mjs';
 
 /** Every flow, in the order they run (one may need what an earlier one left: harness.mjs NEEDS). */
 const RUN = [
@@ -100,6 +101,7 @@ const RUN = [
   ['29', flow29],
   ['33', flow33],
   ['34', flow34],
+  ['35', flow35],
 ];
 
 async function run(profile) {

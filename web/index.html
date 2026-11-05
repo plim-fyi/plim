@@ -724,7 +724,7 @@
             <button type="button" data-section="security"><span>Sign-in &amp; security</span><span class="nav-sub">Passkeys, recovery phrase, auto-lock</span></button>
             <button type="button" data-section="connections"><span>Connections</span><span class="nav-sub" id="settings-nav-connections">None</span></button>
             <button type="button" data-section="storage"><span>Storage</span><span class="nav-sub" id="settings-nav-storage"></span></button>
-            <button type="button" data-section="account"><span>Account</span><span class="nav-sub">Account ID, export</span></button>
+            <button type="button" data-section="account"><span>Account</span><span class="nav-sub">Account ID, import, export</span></button>
           </nav>
 
           <div class="settings-pages">
@@ -864,7 +864,8 @@
                 <div class="group">
                   <div class="setting stacked">
                     <div class="setting-title">Terminal client</div>
-                    <div class="setting-sub"><code>plim</code>, for Linux and macOS: your notes in a terminal, and in scripts. It signs in with your recovery phrase, like another device, and sees all your notes. <a class="lede-link" href="https://github.com/plim-fyi/plim/releases/latest" target="_blank" rel="noopener">Download&nbsp;→</a></div>
+                    <div class="setting-sub"><code>plim</code>, for Linux and macOS: your notes in a terminal, and in scripts. It signs in with your recovery phrase, like another device, and sees all your notes.</div>
+                    <div class="setting-sub">Install it, or update it, with <code>curl -fsSL https://plim.fyi/install.sh | sh</code>, which downloads the latest release and checks its hash. <a class="lede-link" href="https://github.com/plim-fyi/plim/releases/latest" target="_blank" rel="noopener">Download&nbsp;→</a></div>
                   </div>
                 </div>
               </div>
@@ -917,6 +918,27 @@
                   <div class="setting-title">Account ID</div>
                   <code id="settings-account"></code>
                 </div>
+              </div>
+              <!-- Import (g87d, ui/import.js): files, a folder or a zip as notes, made and encrypted on this device -->
+              <div class="group">
+                <div class="setting">
+                  <div>
+                    <div class="setting-title">Import notes</div>
+                    <div class="setting-sub">Markdown or text files, or a zip of them: an export from Plim, Obsidian or Bear. Each file becomes a note, encrypted on this device, and its folder a tag. <button type="button" id="settings-import-folder" class="link small inline-link">Pick a folder instead</button></div>
+                    <div class="setting-sub" id="settings-import-status" role="status" hidden></div>
+                  </div>
+                  <div class="setting-actions">
+                    <button type="button" id="settings-import" class="small">Import…</button>
+                  </div>
+                </div>
+                <div class="setting" id="settings-import-confirm" hidden>
+                  <div class="setting-actions">
+                    <button type="button" id="settings-import-cancel" class="link small">Cancel</button>
+                    <button type="button" id="settings-import-go" class="small primary">Import</button>
+                  </div>
+                </div>
+                <input type="file" id="settings-import-files" multiple accept=".md,.markdown,.txt,.zip,text/markdown,text/plain,application/zip" hidden>
+                <input type="file" id="settings-import-dir" webkitdirectory hidden>
               </div>
               <!-- Export (#47, ui/export.js): every note as a Markdown file, in one zip, made on this device -->
               <div class="group">

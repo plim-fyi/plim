@@ -108,6 +108,12 @@ export function readFrontmatter(text) {
   return { title: t || null, tags: tags ? tagsFrom(listOf(tags)) : null };
 }
 
+/** One field's value in the note's block, as text (`created`, `id`: core/import.js); null without it. */
+export function readField(text, key) {
+  const f = parseBlock(text)?.fields.find((x) => x.key === key);
+  return f && !f.items ? scalar(f.value).trim() : null;
+}
+
 /** Tag names, as written in a list ("#Gym", "gym/legs"): each as kept, once, in order; any that isn't a tag left out. */
 function tagsFrom(items) {
   const out = [];

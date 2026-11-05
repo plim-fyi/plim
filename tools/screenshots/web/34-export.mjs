@@ -50,6 +50,7 @@ export default async function flow34(shared) {
   const names = execFileSync('unzip', ['-Z1', zip], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
   const file = (name) => execFileSync('unzip', ['-p', zip, name], { encoding: 'utf8' });
   const kept = names.filter((n) => !n.startsWith('deleted/'));
+  shared.exportZip = { bytes: readFileSync(zip), count: names.length }; // (flow 35 imports it back)
   if (status !== `Exported ${names.length} ${names.length === 1 ? 'note' : 'notes'}.`) throw new Error(`export said "${status}" for ${names.length} files`);
   if (!names.every((n) => n.endsWith('.md')) || new Set(names.map((n) => n.toLowerCase())).size !== names.length) throw new Error(`the zip's files: ${names.join(', ')}`);
   // Every note in the list has its file (titles, made safe as file names, may differ: by count, then the plain ones by name).
