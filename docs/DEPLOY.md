@@ -59,7 +59,7 @@ loginctl enable-linger $USER          # keep running after you log out
 **Ports:**
 - Both ports are published on the host's **loopback** by default. Put your HTTPS reverse proxy in front of `127.0.0.1:3000`, and set `PLIM_TRUSTED_PROXIES` to the proxy's address as the container sees it.
 - To expose the server directly to your network, publish `3000:3000` instead. Only do this for testing, because the web app needs HTTPS outside `localhost`.
-- Keep the admin port on `127.0.0.1` and reach it from another machine with `ssh -L 3001:127.0.0.1:3001 <host>`.
+- Keep the admin port on `127.0.0.1` and reach it from another machine with `ssh -L 3001:127.0.0.1:3001 <host>`, or put it behind a reverse proxy with a sign-in of its own (one that sets a cookie): the dashboard's API calls send the proxy's cookie along (`credentials: same-origin`). The dashboard accepts only `Host: localhost` or `127.0.0.1` (a DNS-rebinding guard), so the proxy must send that, e.g. nginx `proxy_set_header Host 127.0.0.1:3001`.
 
 **Upgrades:**
 - systemd unit: build or load the new `plim` image, then `systemctl --user restart container-plim`. The unit was generated with `--new`, so it recreates the container from the new image.

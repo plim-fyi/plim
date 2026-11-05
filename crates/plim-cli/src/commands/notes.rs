@@ -40,7 +40,8 @@ pub(crate) async fn ls(server: Option<&str>, urls: bool, tag: Option<&str>, sort
         eprintln!("No notes tagged #{t}.");
     }
     for n in &list {
-        let title = if n.title.is_empty() { "Untitled" } else { &n.title };
+        // (A title is anyone's text, a shared note's too: no control characters to the terminal.)
+        let title = if n.title.is_empty() { "Untitled".to_string() } else { n.title.chars().map(|c| if c.is_control() { ' ' } else { c }).collect() };
         let shared = if n.shared { "  (shared)" } else { "" };
         let tagged: String = n.tags.iter().map(|t| format!("  #{t}")).collect();
         let name = if urls { link::note_url(&base, &n.id) } else { n.id[..8].to_string() };
@@ -131,15 +132,19 @@ pub(crate) async fn export(server: Option<&str>, dir: &std::path::Path) -> Resul
     let titles: Vec<String> = read.iter().map(|(n, body)| export_title(body, &n.title)).collect();
     let named: Vec<Named> = read.iter().zip(&titles).map(|((n, _), t)| Named { id: &n.id, title: t, created: n.created, deleted: n.deleted }).collect();
     let paths = file_paths(&named);
-    std::fs::create_dir_all(dir).with_context(|| format!("making {}", dir.display()))?;
+    // The files aren't encrypted: private to you (0700, 0600), and never written over something
+    // put there since the folder was looked at (create_new, which also refuses a symlink).
+    use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+    let mkdir = |d: &std::path::Path| std::fs::DirBuilder::new().recursive(true).mode(0o700).create(d).with_context(|| format!("making {}", d.display()));
+    mkdir(dir)?;
     for (n, body) in &read {
         let shared = n.share.as_ref().is_some_and(|s| s.role.as_deref() != Some("owner"));
         let text = export_text(body, &FileMeta { created: n.created, updated: n.updated, id: n.id.clone(), shared });
         let path = dir.join(&paths[&n.id]);
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+            mkdir(parent)?;
         }
-        let file = std::fs::File::create(&path).with_context(|| format!("writing {}", path.display()))?;
+        let file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path).with_context(|| format!("writing {}", path.display()))?;
         std::io::Write::write_all(&mut &file, text.as_bytes())?;
         if n.updated > 0.0 {
             // (Its time, its note's last edit, as the zip has it.)

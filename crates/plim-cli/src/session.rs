@@ -23,15 +23,21 @@ pub struct Keyring {
 }
 
 impl Keyring {
+    /// Entries this phrase can't open are left out, with a warning: a phrase change that wasn't
+    /// finished registered its new key under the new phrase (the web app finishes it; see
+    /// web/core/keyring.js). Notes under such a key can't be opened here.
     pub fn from_entries(id: &Identity, account_id: &str, entries: &[KeyringEntryJson]) -> Result<Self> {
         let mut kr = Keyring::default();
         for e in entries {
-            let key = unwrap_vault_key(id, account_id, e.key_version, &B64.decode(&e.nonce)?, &B64.decode(&e.wrapped)?)
-                .with_context(|| format!("cannot unwrap vault key v{}", e.key_version))?;
-            kr.keys.insert(e.key_version, key);
+            match unwrap_vault_key(id, account_id, e.key_version, &B64.decode(&e.nonce)?, &B64.decode(&e.wrapped)?) {
+                Ok(key) => {
+                    kr.keys.insert(e.key_version, key);
+                }
+                Err(_) => eprintln!("{}", LOCKED_KEY_HINT.replace("vN", &format!("v{}", e.key_version))),
+            }
         }
         if kr.keys.is_empty() {
-            return Err(anyhow!("the server returned no vault keys"));
+            return Err(anyhow!(if entries.is_empty() { "the server returned no vault keys" } else { "none of the vault keys opens with this phrase" }));
         }
         Ok(kr)
     }
@@ -41,8 +47,29 @@ impl Keyring {
     }
 
     pub fn doc_key(&self, version: u64, doc_id: &str) -> Result<[u8; 32]> {
-        let vk = self.keys.get(&version).ok_or_else(|| anyhow!("missing vault key v{version}"))?;
+        let vk = self.keys.get(&version).ok_or_else(|| anyhow!("{}", LOCKED_KEY_HINT.replace("vN", &format!("v{version}"))))?;
         Ok(doc_key(vk, doc_id))
+    }
+}
+
+const LOCKED_KEY_HINT: &str = "vault key vN can't be opened with this phrase: a phrase change wasn't finished. Sign in to the web app with this phrase; it asks for the new one and finishes the change.";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use plim_core::crypto::{random_bytes, wrap_vault_key};
+
+    #[test]
+    fn a_vault_key_under_another_phrase_is_left_out_with_a_hint() {
+        let (me, other) = (Identity::from_seed(&[1; 64]), Identity::from_seed(&[2; 64]));
+        let entry = |id: &Identity, v: u64| {
+            let e = wrap_vault_key(id, "acct", v, &random_bytes::<32>());
+            KeyringEntryJson { key_version: v, nonce: B64.encode(e.nonce), wrapped: B64.encode(e.wrapped), sig: B64.encode(e.sig) }
+        };
+        let kr = Keyring::from_entries(&me, "acct", &[entry(&me, 1), entry(&other, 2)]).unwrap();
+        assert_eq!(kr.current(), 1);
+        assert!(kr.doc_key(2, "d").unwrap_err().to_string().contains("v2 can't be opened"));
+        assert!(Keyring::from_entries(&me, "acct", &[entry(&other, 2)]).err().unwrap().to_string().contains("none of the vault keys"));
     }
 }
 

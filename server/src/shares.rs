@@ -186,14 +186,15 @@ pub struct CreateReq {
 pub async fn create(State(st): State<AppState>, s: Session, Json(req): Json<CreateReq>) -> Result<(StatusCode, Json<Value>), ApiError> {
     let mut db = st.db();
     let tx = crate::db::write_tx(&mut db)?;
-    insert_share(&st, &tx, &s.account_id, &req)?;
+    insert_share(&st, &tx, &s.account_id, &req, true)?;
     tx.commit()?;
     Ok((StatusCode::CREATED, Json(json!({ "share_id": req.share_id }))))
 }
 
 /// A share registered for `owner` with its content so far, within the owner's quota and count
-/// (as `create`; a connection makes one on its owner's behalf, connections.rs).
-pub(crate) fn insert_share(st: &AppState, tx: &Connection, owner: &str, req: &CreateReq) -> Result<(), ApiError> {
+/// (as `create`; a connection makes one on its owner's behalf, connections.rs). Only the owner's
+/// own write makes room in their history (quota::check); a connection's fails when full.
+pub(crate) fn insert_share(st: &AppState, tx: &Connection, owner: &str, req: &CreateReq, by_owner: bool) -> Result<(), ApiError> {
     if !valid_share_id(&req.share_id) {
         return Err(bad_request("invalid share_id"));
     }
@@ -207,7 +208,11 @@ pub(crate) fn insert_share(st: &AppState, tx: &Connection, owner: &str, req: &Cr
         return Err(ApiError(StatusCode::CONFLICT, "too many shared notes"));
     }
     let len = blob.ciphertext.len() as i64;
-    quota::check(tx, owner, len, st.cfg().quota_bytes)?;
+    if by_owner {
+        quota::check(tx, owner, len, st.cfg().quota_bytes)?;
+    } else {
+        quota::check_no_room(tx, owner, len, st.cfg().quota_bytes)?;
+    }
     let inserted = tx.execute(
         "INSERT OR IGNORE INTO shares (share_id, owner_account, pubkey, read_hash, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![req.share_id, owner, pubkey, read_hash, now()],
@@ -282,7 +287,7 @@ pub async fn post_update(
     let len = blob.ciphertext.len() as i64;
     let size = shared(&id).bytes(&tx)?;
     fit_share(&tx, &st, &id, &share.owner, size, len)?;
-    quota::check(&tx, &share.owner, len, st.cfg().quota_bytes)?;
+    quota::check_no_room(&tx, &share.owner, len, st.cfg().quota_bytes)?;
     let seq = shared(&id).append(&tx, &blob.stored(), now())?;
     quota::add(&tx, &share.owner, len)?;
     tx.commit()?;
@@ -315,7 +320,7 @@ pub async fn post_snapshot(
     let grows = blob.ciphertext.len() as i64 - doc.freed_by_snapshot(&tx, covers, st.cfg().prune_on_snapshot)?;
     let size = doc.bytes(&tx)?;
     fit_share(&tx, &st, &id, &share.owner, size, grows)?;
-    quota::check(&tx, &share.owner, grows, st.cfg().quota_bytes)?;
+    quota::check_no_room(&tx, &share.owner, grows, st.cfg().quota_bytes)?;
     doc.put_snapshot(&tx, covers, &blob.stored(), st.cfg().prune_on_snapshot, now())?;
     quota::add(&tx, &share.owner, grows)?;
     tx.commit()?;
@@ -440,7 +445,7 @@ pub async fn post_version(
     let len = blob.ciphertext.len() as i64;
     let size = shared(&id).bytes(&tx)?;
     fit_share(&tx, &st, &id, &share.owner, size, len)?;
-    quota::check(&tx, &share.owner, len, st.cfg().quota_bytes)?;
+    quota::check_no_room(&tx, &share.owner, len, st.cfg().quota_bytes)?;
     let vid = shared(&id).save_version(&tx, created_at, &blob.stored())?;
     quota::recompute(&tx, &share.owner)?;
     tx.commit()?;

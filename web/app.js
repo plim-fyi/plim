@@ -30,7 +30,7 @@ import { init as initTagList } from './ui/taglist.js';
 import { init as initNoteHead } from './ui/notehead.js';
 import { moveToFrontmatter } from './ui/to-frontmatter.js';
 import { init as initSearch } from './ui/search.js';
-import { init as initOnboarding, endFlow, showWelcome, uploadPendingPasskeys } from './ui/onboarding.js';
+import { init as initOnboarding, askNewPhrase, endFlow, finishRotation, showWelcome, uploadPendingPasskeys } from './ui/onboarding.js';
 import { init as initSettings, renderPhraseBanner, renderSettingsNav } from './ui/settings.js';
 import { mergePhraseSaved } from './ui/vault-data.js';
 import { init as initConnections, renderConnections, renderConnectionsNav } from './ui/connections.js';
@@ -189,6 +189,14 @@ async function startSession(entropy, identity) {
   };
   const keyRollback = await checkKeyring(state.ctx.seen, keyring);
   if (keyRollback) state.ctx.onRollback('keyring', keyRollback);
+  // A phrase change left unfinished (#7v4r): its new key is under the new phrase only. Asked for
+  // before anything opens (the index may already be under it); the change is finished below.
+  let unfinished = null;
+  if (keyring.locked.size) {
+    const version = Math.max(...keyring.locked.keys());
+    unfinished = { ...(await askNewPhrase(keyring, accountId)), version };
+    busy('Opening your vault…');
+  }
   state.index = new DocSync(state.ctx, 'index');
   await state.index.load();
   notesMap().observeDeep(renderList);
@@ -214,10 +222,17 @@ async function startSession(entropy, identity) {
   });
   state.live.watch(state.index);
   state.live.start(); // (opened offline: a poll signs in once the server's back, goOnline)
-  flushStrayOutboxes();
+  if (unfinished && !offline) {
+    // (Offline: open with the key for now; asked again, and finished, on the next sign-in online.)
+    await flushStrayOutboxes();
+    await finishRotation(unfinished.entropy, unfinished.identity, unfinished.version);
+  } else {
+    flushStrayOutboxes();
+  }
   if (!offline) uploadPendingPasskeys();
   dateUndated(notesMap());
   if (!offline) emptyExpiredTrash();
+  return Boolean(unfinished && !offline); // (a phrase change finished: the passkey that signed in is re-wrapped by its caller)
 }
 
 /** Upload edits left in the outbox for notes that aren't open (e.g. tab closed mid-save). */

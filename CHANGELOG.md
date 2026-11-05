@@ -4,6 +4,21 @@ Each release of `plim`, newest first. The web app and server aren't numbered: th
 main as each change merges. Each release's binary: [the releases](https://github.com/plim-fyi/plim/releases)
 (from 0.20.0).
 
+## 0.20.3
+
+- **Install in one line:** `curl -fsSL https://plim.fyi/install.sh | sh` picks the binary for this machine, checks it against the release's SHA256SUMS and puts it at `~/.local/bin/plim` (`PLIM_INSTALL_DIR` for elsewhere, `PLIM_VERSION` for a release other than the latest). Run it again to update: it says from which version to which.
+- **`plim uninstall`** removes everything of plim from this machine: the binary itself, its config and data (the signed-in device, the local copies), the remembered passphrase in the keychain and the editor's scratch folder. Your notes stay on the server, for your recovery phrase.
+- **Security review (2026-11-04):**
+  - **The connector's consent is bound to the browser it started in.** A `/connect` link passed on to someone else (an attempt started in one Claude, said yes to in another person's Plim) now completes nothing: `/complete` needs a cookie `/authorize` set, as the real flow has. The attempt is used up either way.
+  - **Vim by its other names:** `vi`, `view`, `vimdiff` and Debian's `vim.basic`, `vim.gtk3`… get the no-persistence flags (`-n -i NONE …`) like `vim` and `nvim`, so viminfo keeps no yanked text or search history from a note.
+  - **`plim export`** makes its folder `0700` and each file `0600`, and never writes over a file (or through a symlink) that appeared while it was reading your notes.
+  - **No HTTP redirects are followed:** the API never sends one, and following one would have carried the share, holder and signature headers to wherever it pointed.
+  - **A server on this machine is reached directly,** not through a proxy from `HTTP_PROXY`/`ALL_PROXY`: over plain `http://` to `localhost` that would have sent the session across the network in the clear after all.
+  - **`plim ls`** shows a title's control characters as spaces (a shared note's title is anyone's text; a terminal escape in it could set your clipboard).
+  - **`plim init`** clears the scrollback as well as the screen after you've written the 12 words down, where the terminal honours `ESC[3J`.
+  - **A phrase change left unfinished** (in the web app) no longer stops `plim` signing in: a vault key the phrase can't open is left out with a hint to finish the change in the web app, and a note under it says the same. (The web app now registers the new key under the new phrase from the first step, so the old phrase can't open it.)
+  - **Security updates:** rustls-webpki 0.103.16 (RUSTSEC-2026-0382: certificate verification could accept distrusted intermediates), webpki-root-certs 1.0.11 (RUSTSEC-2026-0383), ctutils 0.4.8 (RUSTSEC-2026-0385, a non-constant-time compare in the AES-GCM stack).
+
 ## 0.20.2
 
 - **No plain `http://` to other machines:** `plim` sends nothing to a server whose address is `http://` unless it's on this machine (`localhost`, `127.0.0.1`, `[::1]`), since your session and share keys would cross the network unencrypted (your notes stay encrypted either way). It says so and how to go on: its `https://` address, or `--insecure-http` (`PLIM_INSECURE_HTTP=1`) if you mean it. This holds for `--server`, `PLIM_SERVER`, the signed-in server and links to shared notes.

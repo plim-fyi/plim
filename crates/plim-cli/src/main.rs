@@ -31,7 +31,7 @@ mod writer;
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 
-use crate::commands::account::{delete_account, init, login, logout, remember};
+use crate::commands::account::{delete_account, init, login, logout, remember, uninstall};
 use crate::commands::edit::{How, edit};
 use crate::commands::history::{history, restore};
 use crate::commands::notes::{Sort, add, append, cat, cat_tagged, export, ls, rm, tag, tags};
@@ -73,6 +73,12 @@ enum Command {
         /// Even if some edits have not been uploaded yet
         #[arg(long)]
         force: bool,
+    },
+    /// Remove plim from this machine: the binary, its config and data, the remembered passphrase
+    Uninstall {
+        /// Don't ask first
+        #[arg(long)]
+        yes: bool,
     },
     /// List notes, with their tags
     Ls {
@@ -248,6 +254,7 @@ async fn run(cli: Cli) -> Result<()> {
         Some(Command::Login) => login(server).await,
         Some(Command::Remember { off }) => remember(off).await,
         Some(Command::Logout { force }) => logout(force),
+        Some(Command::Uninstall { yes }) => uninstall(yes, std::env::current_exe().ok()),
         Some(Command::Ls { urls, tag, sort }) => ls(server, urls, tag.as_deref(), sort).await,
         Some(Command::Cat { tag: Some(tag), .. }) => cat_tagged(server, &tag).await,
         Some(Command::Cat { query, .. }) => cat(server, query.as_deref().unwrap_or_default()).await,

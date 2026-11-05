@@ -250,7 +250,7 @@ pub async fn create_share(State(st): State<AppState>, a: ActionSig, Path(id): Pa
         tx.commit()?;
         return Err(ApiError(StatusCode::FORBIDDEN, "not signed by this connection"));
     }
-    insert_share(&st, &tx, &owner, &req)?;
+    insert_share(&st, &tx, &owner, &req, false)?;
     tx.execute("UPDATE connections SET last_used_at = ?2 WHERE connection_id = ?1", params![id, now()])?;
     tx.commit()?;
     Ok((StatusCode::CREATED, Json(json!({ "share_id": req.share_id }))))

@@ -1,6 +1,6 @@
 [package]
 name = "plim-cli"
-version = "0.20.2"  # the release this is (CHANGELOG.md has what's in each)
+version = "0.20.3"  # the release this is (CHANGELOG.md has what's in each)
 edition = "2024"
 description = "Terminal client for Plim end-to-end encrypted notes"
 license = "MIT OR Apache-2.0"

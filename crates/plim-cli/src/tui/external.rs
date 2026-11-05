@@ -69,10 +69,13 @@ pub fn plan(configured: &str, omarchy_default: Option<String>, which: &dyn Fn(&s
     let program = command.split_whitespace().next().unwrap_or("vi").to_string();
     let name = real_name(&program, which);
     let base = name.trim_end_matches(".exe");
-    match base {
-        "vim" | "nvim" | "vimx" | "gvim" => {
+    // (Vim by any of its names: Debian's `vi`/`vim` are `vim.basic`, `vim.gtk3`…, Fedora's `vi` is
+    // vim-minimal; without the flags, viminfo keeps yanked text and search history on disk.)
+    let vim = base.split('.').next().unwrap_or(base);
+    match vim {
+        "vim" | "nvim" | "vimx" | "gvim" | "vi" | "view" | "vimdiff" => {
             let mut args: Vec<String> = VIM_SAFE_ARGS.iter().map(|s| s.to_string()).collect();
-            if base == "gvim" {
+            if vim == "gvim" {
                 args.insert(0, "-f".into()); // stay in the foreground until closed
             }
             EditorPlan { command, args, warning: None }
@@ -155,13 +158,15 @@ mod tests {
 
     #[test]
     fn vim_family_gets_no_persistence_flags() {
-        for cmd in ["nvim", "vim", "/usr/bin/nvim"] {
+        // (Debian's vim.basic/vim.gtk3 behind vi and vim; Fedora's vi, vim-minimal's own binary.)
+        for cmd in ["nvim", "vim", "/usr/bin/nvim", "vim.basic", "/usr/bin/vim.gtk3", "vi", "vimdiff"] {
             let p = plan(cmd, None, &none);
             assert_eq!(p.command, cmd);
-            assert_eq!(p.args, VIM_SAFE_ARGS);
-            assert!(p.warning.is_none());
+            assert_eq!(p.args, VIM_SAFE_ARGS, "{cmd}");
+            assert!(p.warning.is_none(), "{cmd}");
         }
         assert_eq!(plan("gvim", None, &none).args[0], "-f");
+        assert_eq!(plan("gvim.exe", None, &none).args[0], "-f");
     }
 
     #[test]

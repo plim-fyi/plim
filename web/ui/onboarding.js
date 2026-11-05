@@ -185,7 +185,10 @@ async function openWithPasskey({ credentialId, prf }) {
 async function openWithCopy(prf, credentialId, rec) {
   const entropy = await openPasskeyCopy(prf, credentialId, rec);
   const { identity } = await identityFromEntropy(entropy);
-  await startSession(entropy, identity);
+  const finishedChange = await startSession(entropy, identity);
+  // (A phrase change finished on the way in: this passkey held the old phrase, so the server
+  // dropped its copy; kept, with the new one, from the sign-in it just made.)
+  if (finishedChange) return addPasskey({ credentialId, prf });
   await passkeyCache.put({ ...rec, accountId: state.ctx.accountId });
   await passkeysChanged();
   keepStorage();
@@ -350,13 +353,21 @@ $('confirm-back').addEventListener('click', () => showStep('phrase'));
  * flow): every note re-encrypted, the keys swapped, the passkey step next if this browser has one.
  */
 async function doRotate(mnemonic) {
+  const { entropy, identity } = await identityFromMnemonic(mnemonic);
+  return rotateTo(entropy, identity);
+}
+
+/**
+ * The phrase change itself, from a new phrase just confirmed, or `resume`d (the version a change
+ * that was interrupted had registered, opened with the new phrase: askNewPhrase).
+ */
+async function rotateTo(entropy, identity, { resume = null } = {}) {
   state.busy = true;
   busy('Saving pending changes…');
   try {
     await Promise.all([state.index.flush(), state.note?.sync.flush()]);
-    const { entropy, identity } = await identityFromMnemonic(mnemonic);
     const { accountId, identity: oldIdentity } = state.ctx;
-    await rotatePhrase(state.ctx, identity, { prune: true, onProgress: (t) => ($('busy-text').textContent = t) });
+    await rotatePhrase(state.ctx, identity, { prune: true, resume, onProgress: (t) => ($('busy-text').textContent = t) });
     phraseChanged(entropy, identity);
     await markPhraseSaved(true); // just confirmed
     // The server dropped every passkey's copy (they held the old phrase); so does this
@@ -372,15 +383,60 @@ async function doRotate(mnemonic) {
     await sessionStore.delete(oldIdentity.pubkeyHash);
     await refreshSession(api, identity, state.ctx.keyring, sessionStore);
     state.busy = false;
+    if (resume) return passkeyStepDone(); // (finishing at sign-in: the sign-in goes on to the notes)
     if (inFlow('passkey')) showPasskeyStep('rotate');
     else leavePasskeyStep();
   } catch (e) {
     state.busy = false;
     console.error(e);
-    alert(`Changing the phrase failed: ${e.message}\nYour old phrase still works.`);
+    // (Past step 1: the new key is registered, under the new phrase. Signing in with the old
+    // phrase asks for the new one and finishes the change; nothing is lost either way.)
+    const then = e.registered
+      ? 'The change isn’t finished: Plim asks for the new phrase the next time you sign in with the old one, and finishes it then. Keep both.'
+      : 'Nothing changed: your old phrase still works.';
+    alert(`Changing the phrase failed: ${e.message}\n${then}`);
     endFlow();
     show('notes');
   }
+}
+
+// ---------- a phrase change left unfinished (#7v4r) ----------
+
+/**
+ * The old phrase signed in, but the keyring holds a key only the new phrase opens (the change was
+ * interrupted after registering it). Asks for the new phrase until it opens that key, and gives
+ * its identity and entropy; the caller (app.js startSession) then finishes the change with
+ * finishRotation. Lock is the way out.
+ */
+export function askNewPhrase(keyring, accountId) {
+  return new Promise((resolve) => {
+    const form = $('finish-phrase-form');
+    const onSubmit = async (e) => {
+      e.preventDefault();
+      const phrase = $('finish-phrase-input').value;
+      const problem = await validateMnemonic(phrase);
+      if (problem) return setError('finish-phrase-error', problem);
+      const { entropy, identity } = await identityFromMnemonic(phrase);
+      try {
+        await keyring.unlock(identity, accountId);
+      } catch {
+        return setError('finish-phrase-error', 'That isn’t the new phrase: it doesn’t open the key the change registered.');
+      }
+      $('finish-phrase-input').value = '';
+      form.removeEventListener('submit', onSubmit);
+      resolve({ entropy, identity });
+    };
+    form.addEventListener('submit', onSubmit);
+    setError('finish-phrase-error');
+    show('finish-phrase');
+    $('finish-phrase-input').focus();
+  });
+}
+$('finish-phrase-lock').addEventListener('click', () => location.reload()); // (nothing of the vault is open yet)
+
+/** Steps 2 to 4 of an interrupted change, with the key it registered (its version) now open. */
+export function finishRotation(entropy, identity, version) {
+  return rotateTo(entropy, identity, { resume: version });
 }
 
 

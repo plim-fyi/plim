@@ -60,6 +60,45 @@ export default async function flow6(shared) {
     await B.click('#unlock-passkey');
     await until(B, () => /recovery phrase was changed/.test(document.querySelector('#welcome-error').textContent + document.querySelector('#unlock-error').textContent));
     await s(B, '06-phrase-4-other-device');
+
+    // A change interrupted (#7v4r): its new key is registered under the new phrase only, so the old
+    // phrase (A's passkey holds it) signs in and Plim asks for the new one, then finishes the change.
+    await openSettings(A);
+    await A.click('#settings-rotate');
+    await waitView(A, 'view-phrase');
+    await until(A, () => document.getElementById('phrase-title').textContent === 'Your new recovery phrase');
+    const finalWords = await phraseWords(A);
+    await A.click('#phrase-saved');
+    await until(A, () => !document.getElementById('phrase-continue').disabled);
+    await A.click('#phrase-continue');
+    await waitView(A, 'view-confirm');
+    // The first re-encryption fails (the connection lost): the key is registered, nothing more.
+    const before = versionRows();
+    await A.setRequestInterception(true);
+    const cut = (req) => (/\/api\/docs\/[^/]+\/snapshots$/.test(req.url()) ? req.abort() : req.continue());
+    A.on('request', cut);
+    await confirmWords(A, finalWords);
+    await waitView(A, 'view-notes', 60000); // (the alert, "isn't finished", accepted: harness)
+    A.off('request', cut);
+    await A.setRequestInterception(false);
+    const mid = versionRows();
+    if (mid.top !== before.top + 1 || mid.keys.join() !== String(before.top)) throw new Error(`interrupted: the key registered, nothing re-encrypted: ${JSON.stringify({ before, mid })}`);
+    // Signed in again with the old phrase (the passkey): asked for the new one. The old one isn't it.
+    await A.reload();
+    await waitView(A, 'view-locked');
+    await A.click('#unlock-passkey');
+    await waitView(A, 'view-finish-phrase', 30000);
+    await s(A, '06-phrase-5-finish');
+    await A.type('#finish-phrase-input', newWords.join(' '));
+    await A.click('#finish-phrase-form button.primary');
+    await until(A, () => /isn’t the new phrase/.test(document.getElementById('finish-phrase-error').textContent));
+    await A.$eval('#finish-phrase-input', (el) => (el.value = ''));
+    await A.type('#finish-phrase-input', finalWords.join(' '));
+    await A.click('#finish-phrase-form button.primary');
+    await waitView(A, 'view-notes', 60000);
+    const done = versionRows();
+    if (done.top !== mid.top || done.keys.join() !== String(done.top)) throw new Error(`finished: everything under the registered key, no new one: ${JSON.stringify({ mid, done })}`);
+    newWords = finalWords; // (the phrase from here on: 33-search signs in with it)
   } finally {
     Object.assign(shared, { titles, versionRows, historyBefore, newWords, afterRotate });
   }

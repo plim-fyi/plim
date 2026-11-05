@@ -25,6 +25,16 @@ pub fn check(conn: &Connection, account_id: &str, delta: i64, quota: i64) -> Res
     Ok(())
 }
 
+/// As `check`, but without making room: a write that isn't the owner's own (an edit link's, a
+/// connection's) may fill the shared note's own quarter (shares.rs fit_share frees that note's
+/// history for it), never delete the owner's private notes' history to fit.
+pub fn check_no_room(conn: &Connection, account_id: &str, delta: i64, quota: i64) -> Result<(), ApiError> {
+    if delta > 0 && used_bytes(conn, account_id)? + delta > quota {
+        return Err(STORAGE_FULL);
+    }
+    Ok(())
+}
+
 /// At least `need` bytes freed, if the account's history has that many: its oldest versions deleted
 /// first, its private notes' and the shared notes' it owns alike. History is whole while there's
 /// room, and never stops a note being written.

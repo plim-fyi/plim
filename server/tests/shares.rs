@@ -5,6 +5,7 @@ use common::*;
 use plim_core::crypto::{ShareKeys, share_keys};
 
 const SHARE: &str = "00112233445566778899aabbccddeeff";
+const DOC: &str = "aaaa1111-2222-3333-4444-555566667777";
 
 /// A share's keys from a fixed seed, and helpers to sign its blobs.
 struct Share {
@@ -203,6 +204,35 @@ async fn a_full_shared_note_makes_room_from_its_oldest_versions_before_refusing_
     let (_, l) = call_with(&app, "GET", &versions, None, None, &[("x-share-token", s.token())]).await;
     let left: Vec<u64> = l["versions"].as_array().unwrap().iter().map(|v| v["created_at"].as_u64().unwrap()).collect();
     assert_eq!(left, vec![now - 60], "the newer stays");
+}
+
+/// An edit link can fill its note's quarter, never make room in the owner's private notes' history:
+/// when the owner's account is full, the guest's edit is refused and the owner's versions stay.
+#[tokio::test]
+async fn a_guests_edit_never_deletes_the_owners_private_history_to_fit() {
+    let app = test_app(1000, true);
+    let (u, t) = owner(&app).await;
+    let versions = format!("/api/docs/{DOC}/versions");
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    for (i, at) in [now - 86400, now - 60].into_iter().enumerate() {
+        let (st, v) = call(&app, "POST", &versions, Some(&t), Some(u.blob(DOC, "version", 1, at, &[i as u8; 400]))).await;
+        assert_eq!(st, StatusCode::CREATED, "{v}");
+    }
+    let s = Share::new(SHARE, 9);
+    call(&app, "POST", "/api/shares", Some(&t), Some(s.create_body(&[1; 100]))).await;
+    assert_eq!(used(&app, &t).await, 900);
+    // 150 more fits the share's quarter (250), not the owner's quota (1000): refused, nothing deleted.
+    // (The snapshot replaces the 100-byte update it covers, so it's 250 to grow by 150.)
+    for (kind, covers, body) in [("update", 0, vec![2u8; 150]), ("snapshot", 1, vec![3u8; 250]), ("version", now, vec![4u8; 150])] {
+        let (st, v) = call_with(&app, "POST", &format!("/api/shares/{SHARE}/{kind}s"), None, Some(s.blob(kind, covers, &body)), &[("x-share-token", s.token())]).await;
+        assert_eq!((st, v["error"].as_str()), (StatusCode::INSUFFICIENT_STORAGE, Some("storage full")), "{kind}: {v}");
+    }
+    assert_eq!(used(&app, &t).await, 900);
+    assert_eq!(call(&app, "GET", &versions, Some(&t), None).await.1["versions"].as_array().unwrap().len(), 2, "the owner's history is whole");
+    // The owner's own edit still makes room, as before.
+    let (st, _) = call(&app, "POST", &versions, Some(&t), Some(u.blob(DOC, "version", 1, now, &[5; 150]))).await;
+    assert_eq!(st, StatusCode::CREATED);
+    assert_eq!(call(&app, "GET", &versions, Some(&t), None).await.1["versions"].as_array().unwrap().len(), 2);
 }
 
 #[tokio::test]

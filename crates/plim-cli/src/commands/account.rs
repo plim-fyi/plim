@@ -29,7 +29,7 @@ pub(crate) async fn init(server: Option<&str>) -> Result<()> {
         }
         eprintln!();
         prompt_line("Press Enter once you've written them down…")?;
-        eprint!("\x1b[2J\x1b[H"); // clear the screen so the words don't linger
+        eprint!("\x1b[2J\x1b[3J\x1b[H"); // clear the screen, and the scrollback where it's honoured, so the words don't linger
         let mut picks: Vec<usize> = Vec::new();
         while picks.len() < 3 {
             let i = crypto::random_bytes::<1>()[0] as usize % 12;
@@ -120,6 +120,50 @@ pub(crate) fn logout(force: bool) -> Result<()> {
     config::remove_device()?;
     keychain::forget(&device.account_id);
     eprintln!("Signed out. Your recovery phrase is still needed to sign in again.");
+    Ok(())
+}
+
+/// Remove plim from this machine: its config (the signed-in device's key) and data (the local
+/// copies, the editor's scratch), the passphrase remembered in the keychain, the scratch folder
+/// under XDG_RUNTIME_DIR, and the binary itself (`exe`; on Linux and macOS a running program's
+/// file can be removed). The notes stay on the server, for the recovery phrase.
+pub(crate) fn uninstall(yes: bool, exe: Option<std::path::PathBuf>) -> Result<()> {
+    let paths = config::paths()?;
+    let device = config::load_device().ok().flatten();
+    let scratch = std::env::var("XDG_RUNTIME_DIR").ok().filter(|d| !d.is_empty()).map(|d| std::path::PathBuf::from(d).join("plim"));
+    let exe = exe.and_then(|p| p.canonicalize().ok());
+    eprintln!("This removes plim from this machine:");
+    for (what, path) in [("its config", Some(&paths.config)), ("its data", Some(&paths.data)), ("its scratch folder", scratch.as_ref()), ("the program", exe.as_ref())] {
+        if let Some(p) = path.filter(|p| p.exists()) {
+            eprintln!("  - {what}: {}", p.display());
+        }
+    }
+    if let Some(d) = &device {
+        eprintln!("  - the passphrase remembered for the account signed in here, if any");
+        eprintln!("Your notes stay on the server ({}): your recovery phrase opens them.", d.server);
+    }
+    if !yes {
+        if !std::io::stdin().is_terminal() {
+            bail!("not a terminal: pass --yes to go ahead");
+        }
+        if prompt_line("Remove it all? [y/N] ")?.trim().to_ascii_lowercase() != "y" {
+            bail!("nothing removed");
+        }
+    }
+    if let Some(d) = &device {
+        keychain::forget(&d.account_id);
+    }
+    for p in [Some(&paths.config), Some(&paths.data), scratch.as_ref()].into_iter().flatten() {
+        if p.exists() {
+            std::fs::remove_dir_all(p).map_err(|e| anyhow::anyhow!("removing {}: {e}", p.display()))?;
+        }
+    }
+    if let Some(p) = &exe {
+        if let Err(e) = std::fs::remove_file(p) {
+            eprintln!("Couldn't remove the program itself ({e}): rm {}", p.display());
+        }
+    }
+    eprintln!("Removed. If you added {} to your PATH for plim, that line is yours to take out.", exe.and_then(|p| p.parent().map(|d| d.display().to_string())).unwrap_or_else(|| "its folder".into()));
     Ok(())
 }
 

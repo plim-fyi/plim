@@ -110,6 +110,13 @@ struct Client {
     url: String,
 }
 
+/// The cookie /authorize set on this browser, as the browser sends it back to /complete.
+fn cookie_of(r: &reqwest::Response) -> String {
+    let set = r.headers()["set-cookie"].to_str().unwrap();
+    assert!(set.contains("; HttpOnly; SameSite=Lax"), "{set}");
+    set.split(';').next().unwrap().to_string()
+}
+
 impl Client {
     async fn start(srv: &Server) -> Self {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -169,16 +176,18 @@ impl Client {
             .await
             .unwrap();
         assert_eq!(r.status(), 303, "to the consent page");
+        let cookie = cookie_of(&r);
         let to = r.headers()["location"].to_str().unwrap().to_string();
         let q: HashMap<String, String> = url_query(&to);
         assert!(to.contains("/connect?"), "{to}");
         assert_eq!(q["name"], "Claude");
         assert_eq!(q["to"], "claude.ai", "where the person goes back to, for the consent page");
         assert_eq!(q["return"], format!("{}/complete", self.url));
-        // The consent page, said yes: the fragment the app hands to /complete.
+        // The consent page, said yes: the fragment the app hands to /complete (in the same browser).
         let done: Value = self
             .http
             .post(format!("{}/complete", self.url))
+            .header("cookie", &cookie)
             .json(&json!({ "auth": q["auth"], "connection": connection, "secret": B64URL.encode(secret), "to": q["to"] }))
             .send()
             .await
@@ -481,13 +490,23 @@ async fn the_dance_refuses_what_it_should() {
     let r = client.http.post(format!("{}/complete", client.url)).json(&json!({ "auth": "0000", "connection": CONN, "secret": B64URL.encode([1u8; 32]) })).send().await.unwrap();
     assert_eq!(r.status(), 400);
     let r = client.http.get(format!("{}/authorize?response_type=code&client_id={cid}&redirect_uri=https%3A%2F%2Fx.test%2Fcb&code_challenge=abc&code_challenge_method=S256", client.url)).send().await.unwrap();
-    let auth = url_query(r.headers()["location"].to_str().unwrap())["auth"].clone();
+    let (auth, cookie) = (url_query(r.headers()["location"].to_str().unwrap())["auth"].clone(), cookie_of(&r));
     // The consent page's "you'll go back to claude.ai", forged in the link (#403): refused, and the attempt is over.
-    let r = client.http.post(format!("{}/complete", client.url)).json(&json!({ "auth": auth, "connection": CONN, "secret": B64URL.encode([1u8; 32]), "to": "claude.ai" })).send().await.unwrap();
+    let r = client.http.post(format!("{}/complete", client.url)).header("cookie", &cookie).json(&json!({ "auth": auth, "connection": CONN, "secret": B64URL.encode([1u8; 32]), "to": "claude.ai" })).send().await.unwrap();
     assert_eq!(r.status(), 400, "shown claude.ai, going to x.test");
+    // Consent in another browser (the /connect link passed on to someone, who says yes in theirs):
+    // no cookie, no connection, and the attempt is over for whoever started it too.
     let r = client.http.get(format!("{}/authorize?response_type=code&client_id={cid}&redirect_uri=https%3A%2F%2Fx.test%2Fcb&code_challenge=abc&code_challenge_method=S256", client.url)).send().await.unwrap();
-    let auth = url_query(r.headers()["location"].to_str().unwrap())["auth"].clone();
-    let done: Value = client.http.post(format!("{}/complete", client.url)).json(&json!({ "auth": auth, "connection": CONN, "secret": B64URL.encode([1u8; 32]), "to": "x.test" })).send().await.unwrap().json().await.unwrap();
+    let (auth, cookie) = (url_query(r.headers()["location"].to_str().unwrap())["auth"].clone(), cookie_of(&r));
+    assert!(cookie.starts_with(&format!("plim-connect-{auth}=")), "{cookie}");
+    let r = client.http.post(format!("{}/complete", client.url)).json(&json!({ "auth": auth, "connection": CONN, "secret": B64URL.encode([1u8; 32]), "to": "x.test" })).send().await.unwrap();
+    assert_eq!(r.status(), 400, "another browser");
+    assert!(r.text().await.unwrap().contains("another browser"));
+    let r = client.http.post(format!("{}/complete", client.url)).header("cookie", &cookie).json(&json!({ "auth": auth, "connection": CONN, "secret": B64URL.encode([1u8; 32]), "to": "x.test" })).send().await.unwrap();
+    assert_eq!(r.status(), 400, "used up");
+    let r = client.http.get(format!("{}/authorize?response_type=code&client_id={cid}&redirect_uri=https%3A%2F%2Fx.test%2Fcb&code_challenge=abc&code_challenge_method=S256", client.url)).send().await.unwrap();
+    let (auth, cookie) = (url_query(r.headers()["location"].to_str().unwrap())["auth"].clone(), cookie_of(&r));
+    let done: Value = client.http.post(format!("{}/complete", client.url)).header("cookie", &cookie).json(&json!({ "auth": auth, "connection": CONN, "secret": B64URL.encode([1u8; 32]), "to": "x.test" })).send().await.unwrap().json().await.unwrap();
     let code = url_query(done["redirect"].as_str().unwrap())["code"].clone();
     let r = client.http.post(format!("{}/token", client.url)).form(&[("grant_type", "authorization_code"), ("code", &code), ("code_verifier", "wrong")]).send().await.unwrap();
     assert_eq!(r.status(), 400);

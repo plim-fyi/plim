@@ -90,6 +90,9 @@ pub async fn put(
     if req.covers_seq as i64 != created_at {
         return Err(bad_request("a version keeps its time"));
     }
+    // (Re-sealed, it's about the same size; if it grew, that's within the quota like any write.)
+    let grows = blob.ciphertext.len() as i64 - doc.version_len(&tx, id)?.unwrap_or(0);
+    quota::check(&tx, &s.account_id, grows, st.cfg().quota_bytes)?;
     doc.replace_version(&tx, id, &blob.stored(&req))?;
     quota::recompute(&tx, &s.account_id)?;
     tx.commit()?;

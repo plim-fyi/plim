@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import * as Y from '../vendor/yjs.mjs';
 import { generateMnemonic } from '../core/bip39.js';
-import { b64, randomBytes, unb64 } from '../core/crypto.js';
+import { b64, randomBytes, unb64, unwrapVaultKey } from '../core/crypto.js';
 import { DocSync } from '../core/sync.js';
 import { MemoryOutbox } from '../core/vault.js';
 import { solve } from '../core/pow-worker.js';
@@ -74,6 +74,59 @@ if (process.env.PLIM_URL) {
 
     // Device 2's session was revoked and cannot silently re-auth with the old key.
     await assert.rejects(api2.get('/account'), (e) => e.status === 401);
+    [n1, n2, n3].forEach((s) => s.close());
+  });
+
+  // The new vault key is never on the server under the old phrase; a change interrupted after
+  // registering it is finished with the new phrase, from the old phrase's sign-in.
+  test('e2e: a phrase change interrupted leaves nothing the old phrase opens, and is finished later', async () => {
+    const { identity: oldId } = await identityFromMnemonic(await generateMnemonic());
+    const api = new Api(base);
+    const accountId = await createAccount(api, oldId, async (salt, d) => solve(unb64(salt), d));
+    const s1 = await openSession(api, oldId);
+    const ctx = { api, identity: oldId, outbox: new MemoryOutbox(), ...s1 };
+    const n1 = new DocSync(ctx, 'index');
+    n1.ydoc.getMap('notes').set('abc', 'first note');
+    await n1.flush();
+
+    // Interrupted right after step 1 (the first progress report is the first doc's re-encryption).
+    const { identity: newId } = await identityFromMnemonic(await generateMnemonic());
+    const lost = () => { throw new Error('tab closed'); };
+    await assert.rejects(rotatePhrase(ctx, newId, { prune: true, onProgress: lost }), (e) => e.message === 'tab closed' && e.registered === 2);
+
+    // What the server holds for v2 opens with the new phrase, not the old.
+    const { keyringEntries } = await login(new Api(base), oldId);
+    const v2 = keyringEntries.find((e) => e.key_version === 2);
+    await assert.rejects(unwrapVaultKey(oldId, accountId, v2));
+    assert.equal((await unwrapVaultKey(newId, accountId, v2)).length, 32);
+
+    // The old phrase signs in: v1 open, v2 locked, the note (still under v1) readable.
+    const api2 = new Api(base);
+    const s2 = await openSession(api2, oldId);
+    assert.deepEqual([[...s2.keyring.vaultKeys.keys()], [...s2.keyring.locked.keys()]], [[1], [2]]);
+    assert.deepEqual([s2.keyring.current, s2.keyring.highest], [1, 2]);
+    const n2 = new DocSync({ api: api2, identity: oldId, outbox: new MemoryOutbox(), ...s2 }, 'index');
+    await n2.load();
+    assert.equal(n2.ydoc.getMap('notes').get('abc'), 'first note');
+    // The new phrase can't sign in yet (the account's key is still the old one).
+    await assert.rejects(login(new Api(base), newId), (e) => e.status === 401);
+
+    // A wrong "new phrase" doesn't unlock; the right one does, and the change is finished from
+    // where it stopped: no v3.
+    const { identity: wrong } = await identityFromMnemonic(await generateMnemonic());
+    await assert.rejects(s2.keyring.unlock(wrong, accountId));
+    assert.equal(s2.keyring.locked.size, 1);
+    await s2.keyring.unlock(newId, accountId);
+    assert.deepEqual([[...s2.keyring.vaultKeys.keys()], s2.keyring.locked.size], [[1, 2], 0]);
+    const ctx2 = { api: api2, identity: oldId, outbox: new MemoryOutbox(), accountId, keyring: s2.keyring };
+    await rotatePhrase(ctx2, newId, { prune: true, resume: 2 });
+    await assert.rejects(login(new Api(base), oldId), (e) => e.status === 401);
+    const api3 = new Api(base);
+    const s3 = await openSession(api3, newId);
+    assert.deepEqual([[...s3.keyring.vaultKeys.keys()], s3.keyring.locked.size], [[1, 2], 0]);
+    const n3 = new DocSync({ api: api3, identity: newId, outbox: new MemoryOutbox(), ...s3 }, 'index');
+    await n3.load();
+    assert.equal(n3.ydoc.getMap('notes').get('abc'), 'first note');
     [n1, n2, n3].forEach((s) => s.close());
   });
 

@@ -133,12 +133,20 @@ pub struct Api {
 
 impl Api {
     pub fn new(base: &str) -> Self {
+        // No redirects: the API never sends one, and following one would carry the share,
+        // holder and signature headers to wherever it pointed (reqwest drops only Authorization).
+        let mut http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(20))
+            .user_agent(USER_AGENT)
+            .redirect(reqwest::redirect::Policy::none());
+        // A server on this machine over plain http:// is reached directly: through a proxy from the
+        // environment (HTTP_PROXY, ALL_PROXY), the session would cross the network in the clear
+        // after all, and reqwest exempts nothing but what NO_PROXY names.
+        if base.starts_with("http://") && allowed(base, false) {
+            http = http.no_proxy();
+        }
         Api {
-            http: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(20))
-                .user_agent(USER_AGENT)
-                .build()
-                .expect("HTTP client"),
+            http: http.build().expect("HTTP client"),
             base: base.trim_end_matches('/').to_string(),
             token: Mutex::new(None),
             identity: Mutex::new(None),

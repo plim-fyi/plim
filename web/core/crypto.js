@@ -108,9 +108,15 @@ export async function decrypt(key, nonce, ciphertext, aad) {
 // ---- key hierarchy ----
 
 /** Wrap a raw vault key under the KEK and sign the entry; returns the API shape. */
-export async function wrapVaultKey(identity, accountId, keyVersion, vaultKey) {
+/**
+ * A vault key wrapped for the server's keyring: under `identity`'s KEK, signed by `signer`'s key
+ * (the same, but for a phrase change: the new phrase's KEK from the first step, the old key's
+ * signature while it's still the account's, so a copy of the server taken during the change
+ * never holds the new vault key under the old phrase).
+ */
+export async function wrapVaultKey(identity, accountId, keyVersion, vaultKey, signer = identity) {
   const { nonce, ciphertext } = await encrypt(identity.kek, vaultKey, keyringAad(accountId, keyVersion));
-  const sig = await sign(identity.signKey, keyringMsg(accountId, keyVersion, nonce, ciphertext));
+  const sig = await sign(signer.signKey, keyringMsg(accountId, keyVersion, nonce, ciphertext));
   return { key_version: keyVersion, nonce: b64(nonce), wrapped: b64(ciphertext), sig: b64(sig) };
 }
 

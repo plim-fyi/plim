@@ -124,6 +124,9 @@ struct Pending {
     redirect_uri: String,
     code_challenge: String,
     state: Option<String>,
+    /// A cookie set on the browser that started it, which /complete must bring back: consent
+    /// given in another browser, to a /connect link passed on, makes no connection.
+    bind: String,
     until: Instant,
 }
 

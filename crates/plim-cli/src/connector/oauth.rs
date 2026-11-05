@@ -107,6 +107,7 @@ pub(super) async fn authorize(State(c): St, Peer(from): Peer, Query(q): Query<Au
         return oauth_error(StatusCode::BAD_REQUEST, "invalid_request", "redirect_uri must be https (or http to this machine)");
     };
     let auth = hex::encode(random_bytes::<16>());
+    let bind = hex::encode(random_bytes::<16>());
     {
         let mut pending = c.pending.lock().unwrap();
         let theirs = pending.values().filter(|p| p.from == from).count();
@@ -115,13 +116,38 @@ pub(super) async fn authorize(State(c): St, Peer(from): Peer, Query(q): Query<Au
         }
         pending.insert(
             auth.clone(),
-            Pending { from, client_id: q.client_id, redirect_uri: q.redirect_uri, code_challenge: challenge, state: q.state, until: Instant::now() + Duration::from_secs(PENDING_SECS) },
+            Pending { from, client_id: q.client_id, redirect_uri: q.redirect_uri, code_challenge: challenge, state: q.state, bind: bind.clone(), until: Instant::now() + Duration::from_secs(PENDING_SECS) },
         );
     }
     // (The name is the client's own say; where it sends the person back is checked: the consent
     // page shows both, so an app calling itself "Claude" can't pass for it unnoticed.)
     let name = client["n"].as_str().unwrap_or("An app");
-    Redirect::to(&format!("{}/connect?auth={auth}&name={}&to={}&return={}", c.plim, enc(name), enc(&to), enc(&format!("{}/complete", c.public)))).into_response()
+    let mut res = Redirect::to(&format!("{}/connect?auth={auth}&name={}&to={}&return={}", c.plim, enc(name), enc(&to), enc(&format!("{}/complete", c.public)))).into_response();
+    // This browser's, for /complete (a top-level visit, then its own page's fetch: both send a Lax
+    // cookie): the consent page's link passed on to someone else completes nothing in their browser.
+    let secure = if c.public.starts_with("https://") { "; Secure" } else { "" };
+    if let Ok(v) = format!("{}={bind}; Path=/complete; Max-Age={PENDING_SECS}; HttpOnly; SameSite=Lax{secure}", bind_cookie(&auth)).parse() {
+        res.headers_mut().append(header::SET_COOKIE, v);
+    }
+    res
+}
+
+/// The name of the cookie binding a connection attempt to the browser it started in (one each,
+/// so two under way at once don't tread on each other).
+fn bind_cookie(auth: &str) -> String {
+    format!("plim-connect-{auth}")
+}
+
+/// The value of the cookie `name` in a Cookie header, if it's there.
+fn cookie(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
+    headers
+        .get_all(header::COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(';'))
+        .filter_map(|kv| kv.trim().split_once('='))
+        .find(|(k, _)| *k == name)
+        .map(|(_, v)| v.trim().to_string())
 }
 
 /**
@@ -229,11 +255,16 @@ pub(super) struct CompleteReq {
 
 /// Consent given: the connection and its secret, from the Plim app through the page. A code
 /// for the client, to redeem for tokens.
-pub(super) async fn complete(State(c): St, axum::Json(req): axum::Json<CompleteReq>) -> Response {
+pub(super) async fn complete(State(c): St, headers: axum::http::HeaderMap, axum::Json(req): axum::Json<CompleteReq>) -> Response {
     c.sweep();
     let Some(p) = c.pending.lock().unwrap().remove(&req.auth) else {
         return oauth_error(StatusCode::BAD_REQUEST, "invalid_request", "this connection attempt expired");
     };
+    // (Started in another browser, the consent link passed on: no connection for whoever started
+    // it. The attempt is used up either way.)
+    if cookie(&headers, &bind_cookie(&req.auth)).as_deref() != Some(p.bind.as_str()) {
+        return oauth_error(StatusCode::BAD_REQUEST, "invalid_request", "this connection was started in another browser: start again from Claude, in the browser you'll say yes in");
+    }
     // (A link changed to show "claude.ai" while the code would go elsewhere: refused, #403.)
     if redirect_host(&p.redirect_uri).as_deref() != Some(req.to.as_str()) {
         return oauth_error(StatusCode::BAD_REQUEST, "invalid_request", "you were shown another address than this goes back to: start again from Claude");

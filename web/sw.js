@@ -66,7 +66,9 @@ async function networkFirst(req, key) {
   const cache = await caches.open(PAGE_CACHE);
   try {
     const res = await fetch(req);
-    if (res.ok) {
+    // (Only a page is kept as the page: a navigation to /healthz or a file, say from a link in a
+    // note, answered 200 but not HTML, would otherwise be what opens offline.)
+    if (res.ok && (res.headers.get('content-type') ?? '').startsWith('text/html')) {
       const previous = await cache.match(key);
       await cache.put(key, res.clone());
       await prune(versionOf(await previous?.text()));

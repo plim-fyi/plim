@@ -271,6 +271,7 @@ export class MemorySessionStore {
 export async function clearOfflineData() {
   await tx('docs', 'readwrite', (s) => wrap(s.clear()));
   const keys = await tx('kv', 'readonly', (s) => wrap(s.getAllKeys()));
-  const sessions = keys.filter((k) => /^(session|view):/.test(String(k)) || k === PASSKEYS);
+  // (`seen:` is rollback-detection memory, account and note ids by name: rebuilt on the next sign-in.)
+  const sessions = keys.filter((k) => /^(session|view|seen|phrase-saved):/.test(String(k)) || k === PASSKEYS);
   await tx('kv', 'readwrite', (s) => Promise.all(sessions.map((k) => wrap(s.delete(k)))));
 }

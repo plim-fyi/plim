@@ -122,9 +122,7 @@ export async function openSession(api, identity, { store } = {}) {
 export async function refreshSession(api, identity, keyring, store) {
   const { accountId, keyringEntries } = await login(api, identity);
   await store?.save(identity.pubkeyHash, { accountId, keyringEntries });
-  for (const e of keyringEntries) {
-    if (!keyring.vaultKeys.has(e.key_version)) keyring.add(e.key_version, await unwrapVaultKey(identity, accountId, e));
-  }
+  for (const e of keyringEntries) await keyring.addEntry(identity, accountId, e);
   return { accountId };
 }
 
@@ -135,7 +133,7 @@ export async function refreshSession(api, identity, keyring, store) {
  */
 export async function checkKeyring(seen, keyring) {
   const expected = await seen.getKeyVersion();
-  const got = keyring.current;
+  const got = keyring.highest; // (a locked one counts: it's registered, whoever opens it)
   if (got < expected) return { expected, got };
   if (got > expected) await seen.setKeyVersion(got);
   return null;
@@ -145,21 +143,42 @@ export async function checkKeyring(seen, keyring) {
  * Change the recovery phrase. `ctx` is the live session context
  * ({ api, accountId, identity, keyring, outbox }); all outboxes must be empty.
  *
- * 1. new vault key v+1, registered under the *old* key
+ * 1. new vault key v+1, wrapped under the *new* phrase's KEK, registered with the *old* key's
+ *    signature (the server's keyring never holds it under the old phrase, so a copy of the server
+ *    taken during the change opens nothing written after it)
  * 2. every doc re-snapshotted under v+1
  * 3. whole keyring re-wrapped under the new phrase's KEK
  * 4. server swaps the public key (old key authorizes, new key proves possession)
+ *
+ * Interrupted after step 1, the old phrase still signs in but can't open v+1 (Keyring.locked);
+ * the app asks for the new phrase, unlocks it, and carries on with `resume: version` (no v+2).
+ * The error thrown says which it was (`registered`: v+1 is on the server, or nothing changed).
  */
-export async function rotatePhrase(ctx, newIdentity, { prune = true, onProgress = () => {} } = {}) {
+export async function rotatePhrase(ctx, newIdentity, { prune = true, onProgress = () => {}, resume = null } = {}) {
   const { api, accountId, identity: oldIdentity, keyring } = ctx;
   if ((await ctx.outbox.docs()).length) throw new Error('Unsaved changes are still uploading — try again shortly.');
 
-  const version = keyring.current + 1;
-  const vaultKey = randomBytes(32);
-  await api.post('/keyring', await wrapVaultKey(oldIdentity, accountId, version, vaultKey));
-  keyring.add(version, vaultKey);
-  await ctx.seen?.setKeyVersion(version);
+  let version = resume;
+  if (!resume) {
+    version = keyring.current + 1;
+    const vaultKey = randomBytes(32);
+    await api.post('/keyring', await wrapVaultKey(newIdentity, accountId, version, vaultKey, oldIdentity));
+    keyring.add(version, vaultKey);
+    await ctx.seen?.setKeyVersion(version);
+  } else if (!keyring.vaultKeys.has(version)) {
+    throw new Error(`vault key v${version} isn't open`);
+  }
+  try {
+    await reencrypt(ctx, newIdentity, version, { prune, onProgress });
+  } catch (e) {
+    e.registered = version; // (step 1 is done: the next sign-in with the old phrase asks for the new one)
+    throw e;
+  }
+}
 
+/** Steps 2 to 4 of rotatePhrase. */
+async function reencrypt(ctx, newIdentity, version, { prune, onProgress }) {
+  const { api, accountId, identity: oldIdentity, keyring } = ctx;
   const { docs } = await api.get('/docs');
   for (const [i, docId] of docs.entries()) {
     onProgress(`Re-encrypting ${i + 1} of ${docs.length}…`);

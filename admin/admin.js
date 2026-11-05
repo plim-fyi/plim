@@ -49,7 +49,9 @@ function node(tag, cls, text) {
 // ---------- data ----------
 
 async function api(path) {
-  const res = await fetch(`/admin/api/${path}`, { credentials: 'omit' });
+  // (same-origin: the dashboard sets no cookie itself, but a sign-in proxy in front of it does,
+  // and its API calls must carry it, or the proxy answers them with its login page.)
+  const res = await fetch(`/admin/api/${path}`, { credentials: 'same-origin' });
   if (!res.ok) throw new Error(`${path}: ${res.status} ${res.statusText}`);
   return res.json();
 }

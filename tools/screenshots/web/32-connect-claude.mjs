@@ -22,7 +22,10 @@ export default async function flow32(shared) {
   if (sent.status !== 303 || !consentUrl?.startsWith(`${URL}connect?`)) throw new Error(`the connector should send the person to the consent page: ${sent.status} ${consentUrl}`);
   await A.bringToFront();
   await backToList(A);
-  await A.goto(consentUrl);
+  // The person's browser goes through /authorize itself (as Claude sends it), which binds the attempt
+  // to this browser (a cookie /complete needs): the consent link passed on to another completes nothing.
+  await A.goto(authz);
+  await until(A, () => location.pathname === '/connect', undefined, 10000);
   await unlockWithPasskey(A);
   await until(A, () => document.querySelector('#connect-dialog').open, undefined, 20000);
   // It sees what you share with agents (#514), and nothing else.

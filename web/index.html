@@ -145,6 +145,21 @@
       </form>
     </section>
 
+    <!-- Finish a phrase change that was interrupted (ui/onboarding.js askNewPhrase): the new key is
+         under the new phrase from its first step, so the old phrase signs in but can't open it -->
+    <section id="view-finish-phrase" class="view center" hidden>
+      <form id="finish-phrase-form" class="card wide">
+        <h2>Finish changing your phrase</h2>
+        <p class="muted">A change of your recovery phrase didn’t finish. Enter the <strong>new</strong> 12 words to finish it; your notes are then under the new phrase only.</p>
+        <textarea id="finish-phrase-input" rows="3" autocomplete="off" autocapitalize="off" spellcheck="false" required></textarea>
+        <p class="error" id="finish-phrase-error" role="alert"></p>
+        <div class="row end">
+          <button type="button" id="finish-phrase-lock" class="link">Lock</button>
+          <button class="primary">Finish</button>
+        </div>
+      </form>
+    </section>
+
     <!-- Busy -->
     <section id="view-busy" class="view center" hidden>
       <div class="card narrow center-text">
@@ -843,6 +858,13 @@
                     </ol>
                     <div class="setting-sub" id="connect-howto-none" hidden>This Plim has no connector set up yet, so apps can’t connect over the web. Whoever runs it can add one (README: “Connecting Claude over the web”).</div>
                     <div class="setting-sub">It sees the notes you share with agents, and nothing else. Claude Code connects the same way: <code>claude mcp add --transport http plim</code> and this address.</div>
+                  </div>
+                </div>
+                <!-- The terminal client: not a connection (it signs in with your 12 words, as a device does), but where people look for it -->
+                <div class="group">
+                  <div class="setting stacked">
+                    <div class="setting-title">Terminal client</div>
+                    <div class="setting-sub"><code>plim</code>, for Linux and macOS: your notes in a terminal, and in scripts. It signs in with your recovery phrase, like another device, and sees all your notes. <a class="lede-link" href="https://github.com/plim-fyi/plim/releases/latest" target="_blank" rel="noopener">Download&nbsp;→</a></div>
                   </div>
                 </div>
               </div>

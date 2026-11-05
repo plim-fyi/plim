@@ -82,7 +82,7 @@ Everything here works the same on plim.fyi and on a server of your own.
   - domain-separated signatures
   - proof-of-work on signup
   - per-account quota and rate limits
-  - recovery-phrase rotation (re-encrypts under a new vault key and revokes the old phrase)
+  - recovery-phrase rotation (re-encrypts under a new vault key and revokes the old phrase; the new key is wrapped under the new phrase from the first step, so a copy of the server taken during the change opens nothing written after it)
 
 ## Quick start
 
@@ -104,6 +104,7 @@ There are two ways into a vault: a **passkey** or your **12 words**.
 
 - **Creating a vault:** **Create a new vault** asks for a passkey, and that's it. Plim makes your 12 words in the background. If your browser or password manager can't do it, or you choose **Use a recovery phrase instead**, you get the 12 words straight away to write down and confirm. A server at its account limit (`PLIM_MAX_ACCOUNTS`, see [Deploying](docs/DEPLOY.md#configuration)) says it isn't taking new vaults; signing in still works.
 - **Your 12 words:** they're the account's master key, and the only way back in if you lose your passkeys. A vault made with a passkey shows a **Save your recovery phrase** reminder until you've seen them in **Settings → Sign-in & security → Recovery phrase** and tapped **I've saved it**. That's remembered for the account, so it counts on all your devices.
+- **Changing the phrase:** **Settings → Sign-in & security → Change the recovery phrase** shows new words to write down and confirm, then re-encrypts every note under a new key and retires the old phrase (passkeys on other devices held the old one, so they're dropped; this device's can be kept). If the change is interrupted (the tab closed, the connection lost), nothing is lost: the old phrase still signs in, and Plim asks for the new one to finish. Keep both until it has.
 - **Another device:** **Sign in with a passkey** works wherever your passkey syncs (iCloud Keychain, Google Password Manager, 1Password). Anywhere else, sign in with the 12 words. Plim then offers to add a passkey there.
 - **Locked device:** a device that has used a passkey opens on a **Welcome back** screen. **Use your recovery phrase instead** is always there. **Forget this device** removes its offline copies and brings back **Create a new vault**. Your passkeys keep working.
 - **Managing passkeys:** **Settings → Sign-in & security → Passkeys** lists them, adds new ones, renames and removes them. Removing one stops it signing in on every device.
@@ -172,7 +173,7 @@ The note stays end-to-end encrypted, because its key is in the link after the `#
 
 **Limits:**
 - Reads are rate-limited per IP address, including token checks over the live socket, so a link's token can't be guessed quickly. Writes are rate-limited too.
-- A shared note counts against its owner's storage, and one shared note can use at most a quarter of it. Someone with the edit link can fill that quarter, not the owner's whole account.
+- A shared note counts against its owner's storage, and one shared note can use at most a quarter of it. Someone with the edit link can fill that quarter, not the owner's whole account, and their edits never make room by deleting the owner's own notes' history: when the account is full, theirs is the edit that's refused.
 - Opening "Add to my notes" from a link asks first, so a link from someone else can't put a note in your list unasked.
 
 **Keep in mind:**
@@ -187,22 +188,24 @@ The note stays end-to-end encrypted, because its key is in the link after the `#
 
 `plim` is a native client that talks to the same server and reads and writes the same notes as the web app. All encryption happens locally, as in the browser. It uses `yrs`, the Rust port of Yjs, which is binary-compatible with it.
 
-**Install a release** from [the releases](https://github.com/plim-fyi/plim/releases) (what's in each: [CHANGELOG.md](CHANGELOG.md)). On Linux, one static binary for any x86-64 machine:
+**Install** on Linux (x86-64) or a Mac (Apple silicon or Intel):
 
 ```sh
+curl -fsSL https://plim.fyi/install.sh | sh
+```
+
+It downloads the binary for your machine from [the latest release](https://github.com/plim-fyi/plim/releases/latest), checks it against the release's `SHA256SUMS`, and puts it at `~/.local/bin/plim` (`PLIM_INSTALL_DIR=/usr/local/bin` for elsewhere; `PLIM_VERSION=0.20.2` for a particular release). **To update,** run the same line again: it says which version it went from and to. **To remove it,** `plim uninstall` takes away the binary, its config and data, the passphrase it remembered and its scratch folder; your notes stay on the server. The script is [short and readable](web/install.sh), served as part of the web app, so it's in the signed record of every deploy; what it does by hand:
+
+```sh
+# Linux: plim-linux-amd64, one static binary for any x86-64 machine. A Mac: plim-macos (not signed by
+# Apple; fetched with curl, macOS runs it as is), checked with `shasum -a 256 -c` instead.
 curl -fsSLO https://github.com/plim-fyi/plim/releases/latest/download/plim-linux-amd64
 curl -fsSLO https://github.com/plim-fyi/plim/releases/latest/download/SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS && install -m 755 plim-linux-amd64 ~/.local/bin/plim
-plim --version                                  # plim 0.20.0 (<commit>)
+plim --version                                  # plim 0.20.2 (<commit>)
 ```
 
-On a Mac, one binary for Apple silicon and Intel (not signed by Apple: fetched with `curl` as here, macOS runs it as is):
-
-```sh
-curl -fsSLO https://github.com/plim-fyi/plim/releases/latest/download/plim-macos
-curl -fsSLO https://github.com/plim-fyi/plim/releases/latest/download/SHA256SUMS
-grep ' plim-macos$' SHA256SUMS | shasum -a 256 -c && sudo install -m 755 plim-macos /usr/local/bin/plim
-```
+What's in each release: [CHANGELOG.md](CHANGELOG.md).
 
 Elsewhere, build it from source.
 

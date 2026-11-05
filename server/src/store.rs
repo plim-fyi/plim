@@ -236,6 +236,13 @@ impl<'a> Doc<'a> {
         conn.query_row(&format!("SELECT created_at FROM {} WHERE id = :id AND {}", self.table("versions"), self.key()), &*params, |r| r.get(0)).optional()
     }
 
+    /// A version's size, if it's one of this note's.
+    pub fn version_len(&self, conn: &Connection, id: i64) -> rusqlite::Result<Option<i64>> {
+        let mut params = self.params();
+        params.push((":id", &id));
+        conn.query_row(&format!("SELECT LENGTH(ciphertext) FROM {} WHERE id = :id AND {}", self.table("versions"), self.key()), &*params, |r| r.get(0)).optional()
+    }
+
     /// A version saved (kept: a note's history is whole, its oldest going only to make room, quota.rs).
     pub fn save_version(&self, conn: &Connection, created_at: i64, blob: &NewBlob) -> rusqlite::Result<i64> {
         let (cols, vals) = self.key_columns();
