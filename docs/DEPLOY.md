@@ -38,7 +38,7 @@ Each setting is also read by its name from before the rename, `TIRO_*` (`TIRO_DB
 
 The server's image is about 35 MB: a distroless runtime, a non-root user, and the database in the `/data` volume. Podman and Docker both work.
 
-**The published image**, `ghcr.io/plim-fyi/plim`, for amd64 and arm64 (a Raspberry Pi 4 or 5, an ARM server). It's built from this repository's `Containerfile` by its [Image workflow](../.github/workflows/image.yml), on every change to main: `latest` is main as it is now, `sha-<commit>` a particular commit, to stay on or go back to.
+**The published image**, `ghcr.io/plim-fyi/plim`, for amd64 and arm64 (a Raspberry Pi 4 or 5, an ARM server). It's built from this repository's `Containerfile` by its [Image workflow](../.github/workflows/image.yml) for each [release](https://github.com/plim-fyi/plim/releases), with the release's version, the terminal client's: `latest` is the newest release, `0.21.0` one release, `0.21` the newest of 0.21. Pin a version to choose when you upgrade. (Main between releases, which plim.fyi runs, isn't published as an image: build it yourself, below.)
 
 ```sh
 podman run -d --name plim -v plim-data:/data \
@@ -72,7 +72,7 @@ loginctl enable-linger $USER          # keep running after you log out
 - Keep the admin port on `127.0.0.1` and reach it from another machine with `ssh -L 3001:127.0.0.1:3001 <host>`, or put it behind a reverse proxy with a sign-in of its own (one that sets a cookie): the dashboard's API calls send the proxy's cookie along (`credentials: same-origin`). The dashboard accepts only `Host: localhost` or `127.0.0.1` (a DNS-rebinding guard), so the proxy must send that, e.g. nginx `proxy_set_header Host 127.0.0.1:3001`.
 
 **Upgrades:**
-- The new image: `podman pull ghcr.io/plim-fyi/plim:latest` (or build your own again).
+- The new image: `podman pull ghcr.io/plim-fyi/plim:latest` (or the new version's tag, or build your own again).
 - systemd unit: then `systemctl --user restart container-plim`. The unit was generated with `--new`, so it recreates the container from the new image.
 - Without systemd: then `podman rm -f plim`, and the same `podman run` as before.
 - Data lives in the volume and survives.

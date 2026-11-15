@@ -1,14 +1,15 @@
-# The server's container image, ghcr.io/plim-fyi/plim, built from this repository's Containerfile on
-# every change to main, for amd64 and arm64: each on a runner of its own architecture (no
-# emulation), pushed by digest, then joined into one multi-arch image tagged `latest` and
-# `sha-<commit>`. Built here, from the tree you can read, with this workflow's token: what an image
-# was made from is the commit its tag names. How to run it: docs/DEPLOY.md, "Container".
+# The server's container image, ghcr.io/plim-fyi/plim, built from this repository's Containerfile for
+# each release (a tag v<version>, the terminal client's version: CHANGELOG.md), for amd64 and arm64:
+# each on a runner of its own architecture (no emulation), pushed by digest, then joined into one
+# multi-arch image tagged `<version>`, `<major>.<minor>` and `latest` (the newest release). Built
+# here, from the tree you can read, with this workflow's token: what an image was made from is the
+# release its tag names. How to run it: docs/DEPLOY.md, "Container".
 name: Image
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    tags: ['v*']
+  workflow_dispatch: # (by hand, on a release's tag: Use workflow from → Tags → v<version>)
 
 permissions:
   contents: read
@@ -22,6 +23,7 @@ env:
 
 jobs:
   build:
+    if: startsWith(github.ref, 'refs/tags/v') # (releases only, run by hand too: never a branch)
     strategy:
       matrix:
         include:
@@ -97,9 +99,12 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE }}
+          # (v0.21.0 → 0.21.0, 0.21 and latest; a pre-release, v0.21.0-rc.1, only its own tag.)
           tags: |
-            type=raw,value=latest
-            type=sha,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          flavor: |
+            latest=auto
       - name: One image for both architectures, tagged
         working-directory: digests
         run: |
