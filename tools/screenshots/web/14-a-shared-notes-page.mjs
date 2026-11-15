@@ -1,4 +1,4 @@
-import { backToList, browser, closeSettings, guestAdd, guestMenu, intoEditor, mobile, openHistory, openNote, openSettings, pageSeed, PROFILES, rowMenu, s, seedRandomness, setView, titleClear, typeAtEnd, typeText, unlockWithPasskey, until, waitView, watchShiftsOn } from './harness.mjs';
+import { backToList, browser, closeSettings, guestAdd, guestMenu, intoEditor, mobile, openHistory, openNote, openSettings, pageSeed, PROFILES, rowMenu, s, seedRandomness, setView, titleClear, typeAtEnd, typeText, until, waitView, watchShiftsOn } from './harness.mjs';
 import { wait } from '../server.mjs';
 // To play a server forging an edit (#77).
 import { b64, encrypt } from '../../../web/core/crypto.js';
@@ -427,8 +427,8 @@ export default async function flow14(shared) {
         if (!seen) throw new Error('presence: after Back and Forward in the app, Grace doesn’t see Ada');
         console.log('  presence: the app, too, restored by Back and Forward: Ada is back for Grace');
       } else {
-        console.log('  presence: the app was reloaded by Back and Forward (not restored): unlocking');
-        await unlockWithPasskey(A);
+        console.log('  presence: the app was reloaded by Back and Forward (not restored): open again, kept unlocked');
+        await waitView(A, 'view-notes', 20000);
         await openNote(A, title);
       }
     }
@@ -474,8 +474,7 @@ export default async function flow14(shared) {
     const asked = [];
     C.on('dialog', (d) => asked.push(d.message())); // (accepted by the handler every page has)
     await guestAdd(C);
-    await waitView(C, 'view-locked', 20000); // the app, locked: unlock, then the note is added
-    await unlockWithPasskey(C);
+    await waitView(C, 'view-notes', 20000); // the app (kept unlocked on this device), then the note is added
     await until(C, (t) => [...document.querySelectorAll('#note-list .title')].some((e) => e.textContent === t), title, 20000);
     // A link can bring anyone here: a note joins your list only when you say so.
     if (!asked.some((m) => m.startsWith('Add this shared note to your notes?'))) throw new Error(`no confirmation before adding: ${asked}`);
@@ -483,14 +482,13 @@ export default async function flow14(shared) {
     if (await C.evaluate(() => location.hash)) throw new Error('the key should leave the address bar once added');
     await typeAtEnd(C, '\n- (from C’s own list)');
     await until(A, () => document.getElementById('editor').noteText().includes('C’s own list'), undefined, 10000);
-    // The link on the note's address (#299), opened where a vault is: the app, locked; unlocked, the note
+    // The link on the note's address (#299), opened where a vault is: the app (kept unlocked), the note
     // itself, no question asked (it's in the list already: here A's other device, the owner's), its address in the bar.
     await B.bringToFront();
     const askedB = [];
     B.on('dialog', (d) => askedB.push(d.message()));
     await B.goto(edit);
-    await waitView(B, 'view-locked', 20000);
-    await unlockWithPasskey(B);
+    await waitView(B, 'view-notes', 20000);
     await until(B, () => document.getElementById('editor').noteText?.().includes('seen by the viewer'), undefined, 20000)
       .catch(() => { throw new Error("the owner's other device should open the note from its link"); });
     if (askedB.length) throw new Error(`a note of yours needs no adding: ${askedB}`);

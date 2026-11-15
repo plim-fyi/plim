@@ -1,4 +1,4 @@
-import { backToList, newPage, rowMenu, s, server, unlockWithPasskey, until } from './harness.mjs';
+import { backToList, newPage, rowMenu, s, server, until, waitView } from './harness.mjs';
 import { wait } from '../server.mjs';
 
 /** Flow 18: When something's wrong. `shared`: what one flow leaves for the next (web.mjs). */
@@ -56,7 +56,7 @@ export default async function flow18(shared) {
     });
     await A.evaluate(() => sessionStorage.setItem('test-fail-keys', '1'));
     await Promise.all([A.waitForNavigation(), A.click('#update-reload')]);
-    await unlockWithPasskey(A);
+    await waitView(A, 'view-notes'); // (kept unlocked across the reload)
     if (await A.evaluate(() => !document.getElementById('update-banner').hidden)) throw new Error('the reload should bring the page up to date');
     for (const b of await A.$$('#note-list li > button:first-child')) {
       if ((await b.evaluate((e) => e.querySelector('.title').textContent)) === 'Reading list') await b.click();
@@ -66,7 +66,7 @@ export default async function flow18(shared) {
     await s(A, '18-trouble-2-note-failed');
     await A.evaluate(() => sessionStorage.removeItem('test-fail-keys'));
     await Promise.all([A.waitForNavigation(), A.click('#empty-reload')]);
-    await unlockWithPasskey(A);
+    await waitView(A, 'view-notes'); // (kept unlocked across the reload)
     A.errors = A.errors.filter((e) => !e.includes('made to fail by the test'));
 
     // Scripts that don't load (here, one of the app's modules): a message and Reload, not a blank page.

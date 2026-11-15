@@ -1,4 +1,4 @@
-import { allNotes, backToList, EDITOR_READY, expectShifts, freshAuthMinute, mobile, NEW_NOTE, newBlankNote, openNote, pickTag, shot, unlockWithPasskey, until, waitView } from './harness.mjs';
+import { allNotes, backToList, EDITOR_READY, expectShifts, freshAuthMinute, mobile, NEW_NOTE, newBlankNote, openNote, pickTag, shot, until, waitView } from './harness.mjs';
 import { withFrontmatter } from './24-tags.mjs';
 import { wait } from '../server.mjs';
 
@@ -91,8 +91,7 @@ export default async function flow26(shared) {
   await wait(1500); // (its tags, read from its text the old way, into the list)
   await freshAuthMinute();
   await A.reload();
-  await waitView(A, 'view-locked');
-  await unlockWithPasskey(A);
+  await waitView(A, 'view-notes'); // (kept unlocked)
   expectShifts(A, 30000); // (the open note, moved: its header comes in, once)
   await until(A, async () => {
     const { state } = await import(new URL('ui/shared.js', document.querySelector('script[data-start]').src));

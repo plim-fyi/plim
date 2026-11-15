@@ -83,10 +83,8 @@ export default async function flow6(shared) {
     await A.setRequestInterception(false);
     const mid = versionRows();
     if (mid.top !== before.top + 1 || mid.keys.join() !== String(before.top)) throw new Error(`interrupted: the key registered, nothing re-encrypted: ${JSON.stringify({ before, mid })}`);
-    // Signed in again with the old phrase (the passkey): asked for the new one. The old one isn't it.
+    // Opened again with the old phrase (kept unlocked on this device): asked for the new one. The old one isn't it.
     await A.reload();
-    await waitView(A, 'view-locked');
-    await A.click('#unlock-passkey');
     await waitView(A, 'view-finish-phrase', 30000);
     await s(A, '06-phrase-5-finish');
     await A.type('#finish-phrase-input', newWords.join(' '));
@@ -95,6 +93,11 @@ export default async function flow6(shared) {
     await A.$eval('#finish-phrase-input', (el) => (el.value = ''));
     await A.type('#finish-phrase-input', finalWords.join(' '));
     await A.click('#finish-phrase-form button.primary');
+    // No passkey signed in on the way: the one this device used held the old phrase, and is offered
+    // back with one sign-in (or Log out and a passkey would no longer open the vault here).
+    await waitView(A, 'view-passkey', 60000);
+    await until(A, () => document.getElementById('passkey-go-title').textContent === 'Keep using your passkey');
+    await A.click('#passkey-go');
     await waitView(A, 'view-notes', 60000);
     const done = versionRows();
     if (done.top !== mid.top || done.keys.join() !== String(done.top)) throw new Error(`finished: everything under the registered key, no new one: ${JSON.stringify({ mid, done })}`);

@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
-import { createVault, editable, newNote, openVault } from './drive.mjs';
+import { createVault, editable, newNote, waitView } from './drive.mjs';
 import { TestServer, wait } from './server.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -87,7 +87,7 @@ try {
   // (After a reload: the shared note's keys aren't loaded yet, so opening it loads them.)
   await a.evaluate(() => sessionStorage.setItem('failKeys', '1'));
   await a.reload();
-  await openVault(a, a.words);
+  await waitView(a, 'view-notes', 60000); // (the device stays unlocked across the reload)
   await openByTitle(a, 'Private plans');
   await editable(a);
   await openByTitle(a, 'Trip plans');

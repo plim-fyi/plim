@@ -5,10 +5,13 @@
 import { unb64 } from './core/crypto.js';
 import { Api, ApiError, isOffline } from './core/api.js';
 import {
+  NeedsConnectionError,
   checkKeyring,
+  identityFromEntropy,
   openSession,
   refreshSession,
 } from './core/account.js';
+import { forgetKept, keepUnlocked, openKept, touchKept } from './core/stay.js';
 import { DocSync } from './core/sync.js';
 import { Live } from './core/live.js';
 
@@ -30,7 +33,7 @@ import { init as initTagList } from './ui/taglist.js';
 import { init as initNoteHead } from './ui/notehead.js';
 import { moveToFrontmatter } from './ui/to-frontmatter.js';
 import { init as initSearch } from './ui/search.js';
-import { init as initOnboarding, askNewPhrase, endFlow, finishRotation, showWelcome, uploadPendingPasskeys } from './ui/onboarding.js';
+import { init as initOnboarding, askNewPhrase, endFlow, finishRotation, offerPasskeysAfterChange, showWelcome, uploadPendingPasskeys } from './ui/onboarding.js';
 import { init as initSettings, renderPhraseBanner, renderSettingsNav } from './ui/settings.js';
 import { mergePhraseSaved } from './ui/vault-data.js';
 import { init as initConnections, renderConnections, renderConnectionsNav } from './ui/connections.js';
@@ -62,6 +65,7 @@ import {
   passkeyCache,
   removeLegacyUnlock,
   sessionStore,
+  stayStore,
 } from './core/vault.js';
 
 // Storage use only changes when something uploads: refresh it then (at most every
@@ -102,6 +106,9 @@ async function autoLockMinutes() {
   return AUTO_LOCK_OPTIONS.includes(v) ? v : DEFAULT_AUTO_LOCK;
 }
 
+/** Whether this device stays unlocked across reloads (core/stay.js; on unless turned off here). */
+const staysUnlocked = async () => !(await stayStore.isOff().catch(() => false));
+
 async function startAutoLock() {
   state.autoLock?.stop();
   state.autoLock = new AutoLock({
@@ -109,7 +116,8 @@ async function startAutoLock() {
     onLock: () => lock(undefined, { auto: true }),
     onActivity: tellActivity,
   });
-  state.autoLock.start(await autoLockMinutes());
+  // (Kept unlocked, a reload would open it again: no auto-lock then, only Log out.)
+  state.autoLock.start((await staysUnlocked()) ? 0 : await autoLockMinutes());
 }
 
 // ---------- other tabs ----------
@@ -129,6 +137,7 @@ tabs?.addEventListener('message', ({ data }) => {
   if (data?.type === 'lock' && state.ctx) lock(undefined, { auto: data.auto, fromTab: true });
   else if (data?.type === 'activity') state.autoLock?.touch();
   else if (data?.type === 'auto-lock') state.autoLock?.setMinutes(data.minutes);
+  else if (data?.type === 'stay' && state.ctx && !state.locking) startAutoLock(); // (staying unlocked turned on or off)
   else if (data?.type === 'passkeys') reloadPasskeys();
 });
 
@@ -147,6 +156,39 @@ async function passkeysChanged() {
 function phraseChanged(entropy, identity) {
   state.entropy = entropy;
   state.ctx.identity = identity;
+  keepVault();
+}
+
+/** Keep this device unlocked across reloads with the open vault's phrase (unless turned off here). */
+function keepVault() {
+  keepUnlocked(stayStore, { accountId: state.ctx.accountId, entropy: state.entropy }).catch((e) => console.warn('staying unlocked', e));
+}
+
+/**
+ * A device kept unlocked (core/stay.js): open the vault straight away, as an unlock would.
+ * Whether it did; if not, the lock screen follows (and what was kept is dropped, unless it
+ * only needed a connection).
+ */
+async function openKeptVault() {
+  const kept = await openKept(stayStore).catch(() => null);
+  if (!kept) return false;
+  busy('Opening your vault…');
+  let finishedChange;
+  // This device's passkeys, as the lock screen would have read them (Settings and a phrase change
+  // use them); noted before a phrase change finished on the way in drops them.
+  await reloadPasskeys();
+  const mine = state.passkeys.filter((r) => r.accountId === kept.accountId).map((r) => r.credentialId);
+  try {
+    const { identity } = await identityFromEntropy(kept.entropy);
+    finishedChange = await startSession(kept.entropy, identity);
+  } catch (err) {
+    console.warn('opening the vault kept on this device', err);
+    if (!isOffline(err) && !(err instanceof NeedsConnectionError)) await forgetKept(stayStore).catch(() => {});
+    return false;
+  }
+  if (finishedChange) await offerPasskeysAfterChange(mine);
+  else enterNotes();
+  return true;
 }
 
 /** The page is about to go (the account deleted, Settings): nothing more starts or syncs. */
@@ -231,6 +273,7 @@ async function startSession(entropy, identity) {
     flushStrayOutboxes();
   }
   if (!offline) uploadPendingPasskeys();
+  keepVault(); // (a reload opens it again, until Log out or 30 days unused)
   dateUndated(notesMap());
   if (!offline) emptyExpiredTrash();
   return Boolean(unfinished && !offline); // (a phrase change finished: the passkey that signed in is re-wrapped by its caller)
@@ -433,8 +476,16 @@ function flushAll(keepalive) {
   state.note?.sync.writeCache();
 }
 // Also remember where you were in the open note: the tab may not come back.
+let touchedAt = Date.now(); // (when staying unlocked last started its 30 days again)
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) return; // (shown again: live.js polls now)
+  if (!document.hidden) {
+    // (shown again: live.js polls now.) A tab in use keeps the device unlocked, at most hourly.
+    if (state.ctx && !state.locking && Date.now() - touchedAt > 3600_000) {
+      touchedAt = Date.now();
+      touchKept(stayStore).catch(() => {});
+    }
+    return;
+  }
   flushAll(true);
   saveView();
 });
@@ -462,6 +513,8 @@ const SESSION_ENDED = 'Your session ended — the recovery phrase may have been 
 async function lock(message, { auto = false, fromTab = false } = {}) {
   if (state.locking) return;
   state.locking = true;
+  // Locked means locked after the reload too: this device no longer opens without a passkey.
+  const forgotten = forgetKept(stayStore).catch(() => {});
   if (!message && !fromTab) tell({ type: 'lock', auto });
   state.live?.stop();
   state.autoLock?.stop();
@@ -483,6 +536,7 @@ async function lock(message, { auto = false, fromTab = false } = {}) {
   // browser may drop a request that leaves with others (pagehide below is only the fallback).
   if (api.token) await api.request('POST', '/auth/logout', undefined, { retry: false }).catch(() => {});
   api.token = null;
+  await forgotten;
   // A reload is the most reliable way to drop every key from memory.
   location.reload();
 }
@@ -552,7 +606,7 @@ initMenus({ renderList });
 initTagList({ renderList });
 initNoteHead({ editor, visibleNotes });
 initSearch({ editor, renderList }); // (#24)
-initSettings({ api, AUTO_LOCK_KEY, DELETED_KEY, autoLockMinutes, flushAll, leaving, passkeysChanged, refreshStorage, renderOffline });
+initSettings({ api, AUTO_LOCK_KEY, DELETED_KEY, autoLockMinutes, flushAll, keepVault, leaving, passkeysChanged, refreshStorage, renderOffline, startAutoLock, staysUnlocked });
 initOnboarding({ api, DELETED_KEY, LOCK_REASON_KEY, enterNotes, passkeysChanged, phraseChanged, reloadPasskeys, startSession });
 initSharing({ api, editor, openNote, renderSettingsNav, updateMeta, dropOutbox });
 initShareDialog({ api, renderList });
@@ -571,7 +625,8 @@ if (!crypto.subtle || !('indexedDB' in window)) {
   removeLegacyUnlock()
     .then((id) => id && forgetCredential(unb64(id)))
     .catch((e) => console.warn('removing the old unlock failed', e))
-    .finally(() => showWelcome().catch((e) => window.plimFatal?.('Plim couldn’t start', e)));
+    // Kept unlocked on this device: straight to the notes; otherwise Welcome back (or welcome).
+    .finally(() => openKeptVault().then((opened) => opened || showWelcome()).catch((e) => window.plimFatal?.('Plim couldn’t start', e)));
   // Lets the app open without a connection (see sw.js).
   navigator.serviceWorker
     ?.register('/sw.js')

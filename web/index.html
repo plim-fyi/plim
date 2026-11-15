@@ -825,10 +825,18 @@
 
               <h4 class="section-label" id="settings-device-label">This device</h4>
               <div class="group">
+                <!-- Staying unlocked across reloads (core/stay.js): on unless turned off here -->
+                <div class="setting">
+                  <div>
+                    <label class="setting-title" for="settings-stay">Stay unlocked</label>
+                    <div class="setting-sub">A reload opens your notes without your passkey, until Plim goes 30 days unused here. Log out asks again.</div>
+                  </div>
+                  <input type="checkbox" id="settings-stay" class="switch setting-actions" role="switch" />
+                </div>
                 <div class="setting">
                   <div>
                     <label class="setting-title" for="settings-autolock">Auto-lock</label>
-                    <div class="setting-sub">Lock after inactivity</div>
+                    <div class="setting-sub" id="settings-autolock-sub">Lock after inactivity</div>
                   </div>
                   <select id="settings-autolock" class="setting-actions">
                     <option value="5">5 minutes</option>

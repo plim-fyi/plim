@@ -1,4 +1,4 @@
-import { backToList, mobile, openNote, rowMenu, s, server, startServer, stopServer, unlockWithPasskey, until, waitView } from './harness.mjs';
+import { backToList, mobile, openNote, rowMenu, s, server, startServer, stopServer, until, waitView } from './harness.mjs';
 
 /** Flow 22: A note's address. `shared`: what one flow leaves for the next (web.mjs). */
 export default async function flow22(shared) {
@@ -41,10 +41,9 @@ export default async function flow22(shared) {
   await until(A, () => document.getElementById('toast-text').textContent === 'Link copied');
   await s(A, '22-address-1-copied');
 
-  // The address, opened afresh: locked, then the note (the address is kept through the unlock).
+  // The address, opened afresh: the note (the device stays unlocked).
   await A.goto(`${server.url}/n/${id}`);
-  await waitView(A, 'view-locked');
-  await unlockWithPasskey(A);
+  await waitView(A, 'view-notes');
   await at({ path: `/n/${id}`, id });
   // Another note, then Back and Forward: the address and the note follow each other (on a
   // phone, through the list: Back from a note is a step too).
@@ -62,8 +61,7 @@ export default async function flow22(shared) {
 
   // An address that opens no note of yours (deleted, someone else's, mistyped: all the same): said so, the notes still there.
   await A.goto(`${server.url}/n/0d4c6f2e-1b7a-4c3d-9e8f-123456789abc`);
-  await waitView(A, 'view-locked');
-  await unlockWithPasskey(A);
+  await waitView(A, 'view-notes');
   await until(A, () => !document.getElementById('empty').hidden && document.getElementById('empty-text').textContent.includes('no note of yours'), undefined, 15000)
     .catch(() => { throw new Error('an address that opens no note of yours should say so'); });
   if (!(await A.evaluate(() => document.querySelectorAll('#note-list li[data-id]').length))) throw new Error('your notes should still be listed');
@@ -74,12 +72,11 @@ export default async function flow22(shared) {
   await openNote(A, 'Groceries', { edit: false });
   await at({ path: `/n/${id}`, id });
 
-  // With no connection, a bookmarked note still opens: the app from the service worker, the note from this device's copy.
+  // With no connection, a bookmarked note still opens: the app from the service worker, the vault
+  // from what this device kept (still unlocked), the note from this device's copy.
   await stopServer();
   await A.goto(`${server.url}/n/${id}`);
-  await waitView(A, 'view-locked');
-  await until(A, () => !document.querySelector('#locked-offline').hidden, undefined, 10000);
-  await unlockWithPasskey(A);
+  await waitView(A, 'view-notes', 20000);
   await at({ path: `/n/${id}`, id });
   if (!(await A.evaluate(() => document.getElementById('editor').noteText().includes('Groceries')))) throw new Error("the note's text should be there offline");
   await s(A, '22-address-3-offline');

@@ -14,7 +14,7 @@ import { localNow, stamp, withoutCommand } from '../editor/slash.js';
 import { renderPresence, syncFor, yourName } from './shares.js';
 import { renderShareLight } from './menus.js';
 import { leaveTrash } from './trash.js';
-import { currentMode, noteBound, noteClosed, previewView, reading } from './reading.js';
+import { currentMode, noteBound, noteClosed, noteOpening, previewView, reading } from './reading.js';
 import { $, TOUCH, editedHere, notesMap, relTime, state } from './shared.js';
 import { forgetStatus } from './save-status.js';
 import { ago, appMark, appTimes, lastAppEdit, whoOf } from '../core/authorship.js';
@@ -147,6 +147,7 @@ async function openNoteNow(id, { fresh = false, reopen = false, replace = false,
   state.live?.wake();
   // Until the new note is bound, keep what's on screen (no blank flash), read-only.
   noteClosed(); // (a page, if one was up: the editor meanwhile)
+  noteOpening({ editable: sync.writable, fresh, keep }); // (its header at the width it opens in)
   if ($('editor').hidden) editor.waiting();
   else editor.freeze();
   headOpening(); // (its header up already, #581: nothing moves when it's bound)

@@ -30,6 +30,7 @@ import './offline.test.mjs';
 import './large.test.mjs';
 import './passkey.test.mjs';
 import './idle.test.mjs';
+import './stay.test.mjs';
 import './render.test.mjs';
 import './markdown.test.mjs';
 import './textpos.test.mjs';

@@ -12,7 +12,8 @@ import {
   PasskeyError, completePasskey, createPasskey, credHash, defaultPasskeyName, forgetCredential, passkeySupported,
   signInWithPasskey,
 } from '../core/passkey.js';
-import { clearOfflineData, passkeyCache, phraseSaved, sessionStore } from '../core/vault.js';
+import { clearOfflineData, passkeyCache, phraseSaved, sessionStore, stayStore } from '../core/vault.js';
+import { forgetKept } from '../core/stay.js';
 import { guestPath, holderGuestPath, parseHolderLink, parseShareLink } from '../core/share.js';
 import { markPhraseSaved, passkeyNames } from './vault-data.js';
 import { $, busy, setError, show, state } from './shared.js';
@@ -432,7 +433,19 @@ export function askNewPhrase(keyring, accountId) {
     $('finish-phrase-input').focus();
   });
 }
-$('finish-phrase-lock').addEventListener('click', () => location.reload()); // (nothing of the vault is open yet)
+// (Nothing of the vault is open yet; and kept unlocked, the reload would only ask again.)
+$('finish-phrase-lock').addEventListener('click', () => forgetKept(stayStore).catch(() => {}).then(() => location.reload()));
+
+/**
+ * A change finished as a device kept unlocked opened (app.js openKeptVault): no passkey signed in,
+ * so the passkeys this device used (`credentialIds`, base64), which held the old phrase, are
+ * offered as after a change in Settings: one sign-in keeps using them. Otherwise the notes.
+ */
+export async function offerPasskeysAfterChange(credentialIds) {
+  if (!credentialIds.length || !(await passkeySupported())) return enterNotes();
+  keepPasskeys(credentialIds.map(unb64));
+  showPasskeyStep('rotate');
+}
 
 /** Steps 2 to 4 of an interrupted change, with the key it registered (its version) now open. */
 export function finishRotation(entropy, identity, version) {

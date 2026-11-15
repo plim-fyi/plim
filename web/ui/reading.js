@@ -133,6 +133,16 @@ export function noteBound(ytext, view, { fresh = false, editable = true, awarene
   return mode === 'preview';
 }
 
+/**
+ * A note about to open (note.js, before it's bound): its header drawn at the width of the view it
+ * will open in, so a note opening in Preview doesn't come up at the editor's and then move (the
+ * header is a little wider over the page). The rest follows when it's bound (noteBound).
+ */
+export function noteOpening({ editable = true, fresh = false, keep = null } = {}) {
+  const m = !editable ? 'preview' : keep ?? (fresh ? 'edit' : ON_A_PHONE ? 'preview' : remembered());
+  $('note-body').dataset.view = m === 'preview' ? 'preview' : ''; // (Split: its page comes with the note)
+}
+
 /** No note open (closed, or one that didn't open): the page is down, the controls too. */
 export function noteClosed() {
   unwatchPeers();

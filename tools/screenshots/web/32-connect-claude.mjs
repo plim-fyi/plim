@@ -1,4 +1,4 @@
-import { backToList, closeSettings, connector, freshAuthMinute, mobile, openHistory, openNote, openSettings, pickView, s, server, setView, titleClear, unlockWithPasskey, until, URL, waitView } from './harness.mjs';
+import { backToList, closeSettings, connector, freshAuthMinute, mobile, openHistory, openNote, openSettings, pickView, s, server, setView, titleClear, until, URL, waitView } from './harness.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { wait } from '../server.mjs';
 
@@ -26,7 +26,7 @@ export default async function flow32(shared) {
   // to this browser (a cookie /complete needs): the consent link passed on to another completes nothing.
   await A.goto(authz);
   await until(A, () => location.pathname === '/connect', undefined, 10000);
-  await unlockWithPasskey(A);
+  await waitView(A, 'view-notes'); // (kept unlocked: straight to the question)
   await until(A, () => document.querySelector('#connect-dialog').open, undefined, 20000);
   // It sees what you share with agents (#514), and nothing else.
   const keeps = await A.$eval('#connect-notebook .setting-title', (e) => e.textContent);
@@ -93,7 +93,7 @@ export default async function flow32(shared) {
   }, frag.secret);
   // Back in the app (the list is read from its origin): Settings → Connections lists it; its page: what it sees.
   await A.goto(URL);
-  await unlockWithPasskey(A);
+  await waitView(A, 'view-notes');
   const empty = await listed();
   if (empty.status !== 200 || empty.mode !== 'edit' || empty.info.name !== 'Claude' || empty.info.notebook !== true || 'ownTag' in empty.info || empty.titles.length) throw new Error(`the connection's list, new: ${JSON.stringify(empty)}`);
   const nothing = await claude('list_notes');
@@ -434,8 +434,7 @@ export default async function flow32(shared) {
     d.close();
   }
   await A.reload();
-  await waitView(A, 'view-locked');
-  await unlockWithPasskey(A);
+  await waitView(A, 'view-notes');
   const strayLeft = () => {
     const d = db();
     const r = { holder: d.prepare('SELECT COUNT(*) AS n FROM holders WHERE holder_id = ?').get(stray.holder).n, share: d.prepare('SELECT COUNT(*) AS n FROM shares WHERE share_id = ?').get(stray.share).n };
@@ -580,8 +579,7 @@ export default async function flow32(shared) {
   });
   await freshAuthMinute(); // (unlocking again after this flow's signed requests: the next minute's allowance)
   await A.reload();
-  await waitView(A, 'view-locked');
-  await unlockWithPasskey(A);
+  await waitView(A, 'view-notes');
   await until(A, () => document.getElementById('agents-switch-dialog').open, undefined, 20000)
     .catch(() => { throw new Error('the switch should be asked about, once, with a connection given tags'); });
   const asked = await A.evaluate(() => ({

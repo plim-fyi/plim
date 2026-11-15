@@ -7,7 +7,8 @@ import { isOffline, whenOutdated } from '../core/api.js';
 import { deleteAccount, listPasskeys, removePasskey } from '../core/account.js';
 import { fallbackName } from '../core/names.js';
 import { NAME_MAX, cleanName, forgetCredential, passkeySupported } from '../core/passkey.js';
-import { clearOfflineData, kvPut, passkeyCache } from '../core/vault.js';
+import { clearOfflineData, kvPut, passkeyCache, stayStore } from '../core/vault.js';
+import { setStayUnlocked } from '../core/stay.js';
 import { profile } from './shares.js';
 import { dropOutbox } from './trash.js';
 import { setSplitEnabled, splitEnabled } from './reading.js';
@@ -21,9 +22,9 @@ let phraseBannerLater = false; // "Later" on the save-your-phrase banner, until 
 // From app.js (init): the server, this device's keys in storage, auto-lock, saving everything,
 // leaving (the account deleted), this device's passkeys changed, the storage meter and the
 // offline state. (The passkey screen and the phrase's flow: imported, ui/onboarding.js.)
-let api, AUTO_LOCK_KEY, DELETED_KEY, autoLockMinutes, flushAll, leaving, passkeysChanged, refreshStorage, renderOffline;
+let api, AUTO_LOCK_KEY, DELETED_KEY, autoLockMinutes, flushAll, keepVault, leaving, passkeysChanged, refreshStorage, renderOffline, startAutoLock, staysUnlocked;
 export function init(deps) {
-  ({ api, AUTO_LOCK_KEY, DELETED_KEY, autoLockMinutes, flushAll, leaving, passkeysChanged, refreshStorage, renderOffline } = deps);
+  ({ api, AUTO_LOCK_KEY, DELETED_KEY, autoLockMinutes, flushAll, keepVault, leaving, passkeysChanged, refreshStorage, renderOffline, startAutoLock, staysUnlocked } = deps);
 }
 
 
@@ -141,6 +142,21 @@ $('settings-autolock').addEventListener('change', async (e) => {
   tell({ type: 'auto-lock', minutes });
 });
 
+/** Stay unlocked on or off: Auto-lock only applies when it's off (a reload would open it again). */
+function renderStay(on) {
+  $('settings-stay').checked = on;
+  $('settings-autolock').disabled = on;
+  $('settings-autolock-sub').textContent = on ? 'Off while this device stays unlocked' : 'Lock after inactivity';
+}
+$('settings-stay').addEventListener('change', async (e) => {
+  const on = e.target.checked;
+  await setStayUnlocked(stayStore, on); // (off: what was kept is forgotten, here and for every tab)
+  if (on) keepVault();
+  renderStay(on);
+  startAutoLock();
+  tell({ type: 'stay' });
+});
+
 // Settings is in sections (index.html): the list and the chosen one side by side, or on a
 // phone the list, then one section on its own with ‹ Settings.
 const phoneLayout = () => matchMedia('(max-width: 720px)').matches;
@@ -198,6 +214,7 @@ async function openSettings(section) {
   $('settings-name').value = profile().get('name') ?? '';
   $('settings-name').placeholder = fallbackName(); // what others see until you set one
   $('settings-autolock').value = String(await autoLockMinutes());
+  renderStay(await staysUnlocked());
   $('settings-split').checked = splitEnabled();
   $('settings-theme').value = theme();
   await renderPasskeySettings().catch((err) => setError('settings-passkey-error', err));

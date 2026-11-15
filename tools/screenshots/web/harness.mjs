@@ -250,8 +250,9 @@ export const shiftsSoFar = () => made.flatMap((p) => p.shifts);
  * a phone's title (the app's or a guest page's) making room for them, and an icon inside its own button (the account's
  * chevron as its name loads): the button itself stays where it is.
  */
-// (And a note's header, #581: its + tag and yaml › after its tags, as the note's tags change.)
-const SIDEWAYS_OK = /^#(presence|guest-add|guest-view-only|note-title|guest-title|note-head-add|note-head-yaml)$|^text in #(note|guest)-title$| in #presence$|^svg in #|^#tag-chips$| in #tag-chips$| in #note-head-tags$/;
+// (And a note's header, #581: its + tag and yaml › after its tags, as the note's tags change; and the
+// busy screen's line, centred, as its words change: "Re-encrypting 3 of 12…", "Switching keys…".)
+const SIDEWAYS_OK = /^#(presence|guest-add|guest-view-only|note-title|guest-title|note-head-add|note-head-yaml|busy-text)$|^text in #(note|guest)-title$| in #presence$|^svg in #|^#tag-chips$| in #tag-chips$| in #note-head-tags$/;
 export function shiftProblems(shifts) {
   const textInEditor = (n) => /^(div\.cm-line|text in div\.cm-line|div\.cm-cursor|span\.cm-ySelectionCaret|div\.cm-ySelectionCaretDot)\b/.test(n) && n.includes('#editor');
   const sidebarList = (n) => ['#note-list', '#notes-head', '#chips', '#chip-row', '#notes-about', '#notes-nav', '#btn-trash', '#btn-trash-foot', '#sidebar-scroll', 'div.sidebar-search in #view-notes'].includes(n) || /^li in #note-list$/.test(n); // (and the rows moving with them: kept, they're reported)

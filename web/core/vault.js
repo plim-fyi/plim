@@ -91,6 +91,19 @@ export async function removeLegacyUnlock() {
   return old?.credentialId ?? null;
 }
 
+/**
+ * Staying unlocked across reloads (see stay.js): the kept entropy, encrypted under a
+ * non-extractable key stored with it, and whether this device turned it off.
+ */
+const STAY = 'stay-unlocked';
+export const stayStore = {
+  load: () => kvGet(STAY),
+  save: (rec) => kvPut(STAY, rec),
+  delete: () => kvDelete(STAY),
+  isOff: async () => (await kvGet(`${STAY}-off`)) === true,
+  setOff: (off) => kvPut(`${STAY}-off`, off),
+};
+
 /** Whether the user has said they saved the recovery phrase (undefined: never asked on this device). */
 export const phraseSaved = {
   get: (accountId) => kvGet(`phrase-saved:${accountId}`),
@@ -265,13 +278,14 @@ export class MemorySessionStore {
 }
 
 /**
- * "Forget this device": drop every offline copy, passkey copy, saved sign-in
- * and remembered cursor/scroll position. The outbox stays.
+ * "Forget this device": drop every offline copy, passkey copy, saved sign-in,
+ * kept unlock and remembered cursor/scroll position. The outbox stays.
  */
 export async function clearOfflineData() {
   await tx('docs', 'readwrite', (s) => wrap(s.clear()));
   const keys = await tx('kv', 'readonly', (s) => wrap(s.getAllKeys()));
   // (`seen:` is rollback-detection memory, account and note ids by name: rebuilt on the next sign-in.)
-  const sessions = keys.filter((k) => /^(session|view|seen|phrase-saved):/.test(String(k)) || k === PASSKEYS);
+  // (and what stays unlocked: forgetting the device locks it.)
+  const sessions = keys.filter((k) => /^(session|view|seen|phrase-saved):/.test(String(k)) || k === PASSKEYS || k === STAY);
   await tx('kv', 'readwrite', (s) => Promise.all(sessions.map((k) => wrap(s.delete(k)))));
 }

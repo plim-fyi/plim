@@ -18,7 +18,9 @@ export default async function flow1(shared) {
       throw new Error(`the home page: ${JSON.stringify(home)}`);
     }
     await s(A, '01-create-0-home');
-    await A.click('#view-home a.button.primary');
+    // (Its navigation awaited: waitView, seeing the home page still up, would click Sign in as well,
+    // and that second load of /login would come in under the welcome card.)
+    await Promise.all([A.waitForNavigation(), A.click('#view-home a.button.primary')]);
     await waitView(A, 'view-welcome');
     if (new globalThis.URL(A.url()).pathname !== '/login') throw new Error(`Get started should open /login: ${A.url()}`);
     await s(A, '01-create-1-welcome');
