@@ -83,7 +83,7 @@ export default async function flow26(shared) {
   // text; the note as it was kept as a version; the mark set again.
   await newBlankNote(A);
   await A.evaluate(async () => {
-    const { state } = await import(new URL('ui/shared.js', document.querySelector('script[type=module]').src));
+    const { state } = await import(new URL('ui/shared.js', document.querySelector('script[data-start]').src));
     state.index.ydoc.getMap('format').delete('frontmatter');
     document.getElementById('editor').noteYText().insert(0, 'Old note\n#old #gym\n\nWritten before, #inline here.');
   });
@@ -95,7 +95,7 @@ export default async function flow26(shared) {
   await unlockWithPasskey(A);
   expectShifts(A, 30000); // (the open note, moved: its header comes in, once)
   await until(A, async () => {
-    const { state } = await import(new URL('ui/shared.js', document.querySelector('script[type=module]').src));
+    const { state } = await import(new URL('ui/shared.js', document.querySelector('script[data-start]').src));
     return state.index?.ydoc.getMap('format').get('frontmatter') === true;
   }, undefined, 30000).catch(() => { throw new Error('your notes should be moved to frontmatter on unlock, the mark set'); });
   await wait(1000);

@@ -783,7 +783,7 @@ export async function setSplit(p, on) {
   // (Its button in the note's bar comes or goes, moving the others: what a click in Settings does.)
   expectShifts(p, 1500);
   await p.evaluate(async (v) => {
-    const { setSplitEnabled, splitEnabled } = await import(new URL('ui/reading.js', document.querySelector('script[type=module]').src));
+    const { setSplitEnabled, splitEnabled } = await import(new URL('ui/reading.js', document.querySelector('script[data-start]').src));
     if (splitEnabled() !== v) setSplitEnabled(v);
   }, on);
 }

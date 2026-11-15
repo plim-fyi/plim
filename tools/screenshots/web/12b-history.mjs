@@ -271,7 +271,7 @@ export default async function flow12b(shared) {
     // A long history (every version is kept): the newest 60 listed, then a row for the rest; a
     // version's text is loaded only once its row is in sight. (70 saved here, a minute apart.)
     await A.evaluate(async () => {
-      const base = [...document.scripts].find((x) => /app\.js$/.test(x.src)).src;
+      const base = document.querySelector('script[data-start]').src;
       const [{ state }, { saveVersion, nowSecs }] = await Promise.all([import(new URL('ui/shared.js', base)), import(new URL('core/history.js', base))]);
       const now = nowSecs();
       for (let i = 70; i >= 1; i--) await saveVersion(state.note.sync, `Forgetful\n\n- line ${i}`, now - i * 60);

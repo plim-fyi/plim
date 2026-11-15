@@ -32,9 +32,9 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="stylesheet" href="style.css" />
-    <!-- First: if the modules fail, it says so instead of a blank page (#134) -->
-    <script src="boot.js"></script>
-    <script type="module" src="app.js"></script>
+    <!-- boot.js starts the app (app.js, fetched meanwhile): if its modules fail, it says so instead of a blank page (#134) -->
+    <link rel="modulepreload" href="app.js" />
+    <script src="boot.js" data-start="app.js"></script>
   </head>
   <body>
     <noscript>Plim needs JavaScript: all encryption happens in your browser.</noscript>

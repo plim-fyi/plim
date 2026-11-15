@@ -31,8 +31,12 @@ cd tools/screenshots && npm ci && npm run web   # browser flows (Chromium, deskt
 cd tools/screenshots && npm run tui         # the terminal client in tmux, when the CLI changes
 ```
 
-A run of the browser or terminal checks rewrites screenshots under `docs/screenshots/`: keep them
-only when the change is meant to change what they show.
+A run of the browser or terminal checks rewrites screenshots under `docs/screenshots/`. That
+folder is not in git (ignored; never `git add -f` it: by 2026-11 its history was 452 of the
+repository's 469 MB, and was removed). The README and `docs/SCREENSHOTS-TUI.md` show its files,
+so they appear only in a checkout where they were drawn or copied; `tools/publish.sh` sends the
+ones the documents show to the public repository from the checkout it runs in, and stops if one
+is missing.
 
 ## Rules that aren't obvious
 

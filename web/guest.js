@@ -260,4 +260,4 @@ navigator.serviceWorker
   })
   .catch((e) => console.warn('offline support unavailable', e));
 
-window.plimStarted = true; // (boot.js: from here, failures are the page's to show)
+window.plimStarted = true; // (the modules have run: from here, failures are the page's to show; the checks look at it)

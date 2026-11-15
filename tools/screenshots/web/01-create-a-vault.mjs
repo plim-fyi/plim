@@ -37,7 +37,7 @@ export default async function flow1(shared) {
     if (wasmFetched[0] !== '200 application/wasm') throw new Error(`signup's worker fetched web/wasm/plim.wasm: ${JSON.stringify(wasmFetched)}`);
     // …and the page's CSP lets it compile (else wasm.js gives null and the JS solver runs).
     const viaWasm = await A.evaluate(async () => {
-      const app = document.querySelector('script[type=module][src]').src;
+      const app = document.querySelector('script[data-start]').src;
       const wasm = await (await import(new URL('core/wasm.js', app))).loadWasm();
       return wasm && wasm.powSolve(new Uint8Array(16), 8);
     });
@@ -54,7 +54,7 @@ export default async function flow1(shared) {
       return c;
     }));
     const fallback = await A.evaluate(async () => {
-      const app = document.querySelector('script[type=module][src]').src;
+      const app = document.querySelector('script[data-start]').src;
       const wasmUrl = new URL('wasm/plim.wasm', app).href;
       for (const name of await caches.keys()) await (await caches.open(name)).delete(wasmUrl);
       const salt = crypto.getRandomValues(new Uint8Array(16));

@@ -574,7 +574,7 @@ export default async function flow32(shared) {
   // the #gym notes not shared with agents, ticked. Only "Leg day" left ticked: it's shared with agents,
   // the rest stay yours, and the connection's tags go. (Taken out again after: a stand-in.)
   await A.evaluate(async () => {
-    const { state } = await import(new URL('ui/shared.js', document.querySelector('script[type=module]').src)); // (the app's own: its address may be under a note's)
+    const { state } = await import(new URL('ui/shared.js', document.querySelector('script[data-start]').src)); // (the app's own: its address may be under a note's)
     state.index.ydoc.getMap('connections').set('0ld0ld00'.repeat(4), { name: 'Old Claude', secret: 'A'.repeat(43) + '=', listShareId: '0'.repeat(32), listSeed: 'A'.repeat(43) + '=', tags: { gym: 'write' }, ownTag: 'claude/old', notebook: true, created: 1 });
     await state.index.flush();
   });
@@ -597,7 +597,7 @@ export default async function flow32(shared) {
     for (const b of document.querySelectorAll('#agents-switch-list input')) if (b.closest('.pick-row').querySelector('.setting-title').textContent !== 'Leg day') b.click();
     const go = document.getElementById('agents-switch-go').textContent;
     document.getElementById('agents-switch-go').click();
-    const { state } = await import(new URL('ui/shared.js', document.querySelector('script[type=module]').src)); // (the app's own: its address may be under a note's)
+    const { state } = await import(new URL('ui/shared.js', document.querySelector('script[data-start]').src)); // (the app's own: its address may be under a note's)
     const conns = state.index.ydoc.getMap('connections');
     const notes = state.index.ydoc.getMap('notes');
     const place = (t) => [...notes.values()].find((m) => m.get('title') === t)?.get('place') ?? null;

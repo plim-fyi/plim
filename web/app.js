@@ -584,4 +584,4 @@ if (!crypto.subtle || !('indexedDB' in window)) {
     .catch((e) => console.warn('offline support unavailable', e));
 }
 
-window.plimStarted = true; // (boot.js: from here, failures are the app's to show)
+window.plimStarted = true; // (the modules have run: from here, failures are the app's to show; the checks look at it)

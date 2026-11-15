@@ -13,9 +13,9 @@
     <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
-    <!-- First: if the modules fail, it says so instead of a blank page (#134) -->
-    <script src="boot.js"></script>
-    <script type="module" src="guest.js"></script>
+    <!-- boot.js starts the page (guest.js, fetched meanwhile): if its modules fail, it says so instead of a blank page (#134) -->
+    <link rel="modulepreload" href="guest.js" />
+    <script src="boot.js" data-start="guest.js"></script>
   </head>
   <body>
     <noscript>This shared note needs JavaScript: it's decrypted in your browser.</noscript>

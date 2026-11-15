@@ -138,6 +138,22 @@ try {
     await p.close();
   }
 
+  // ---- …or one that loads but doesn't fit the others ----
+  for (const [path, what] of [['/', 'the app'], [new URL(link).pathname + new URL(link).hash, 'a shared note']]) {
+    const p = await newPage();
+    await p.setRequestInterception(true);
+    p.on('request', (r) =>
+      /\/v\/[0-9a-f]+\/core\/(history|sharesync)\.js$/.test(r.url())
+        ? r.respond({ status: 200, contentType: 'text/javascript', body: '// (another version of this file: nothing the others import)' })
+        : r.continue(),
+    );
+    await p.goto(server.url + path);
+    check(await until(p, () => document.getElementById('fatal')?.getClientRects().length > 0), `${what}: a script that doesn't fit the others says so`);
+    const text = await p.$eval('#fatal', (e) => e.textContent).catch(() => '');
+    check(/couldn’t start/.test(text) && /(history|sharesync)\.js/.test(text), `… "Plim couldn’t start", and which file`);
+    await p.close();
+  }
+
   // ---- …but someone else's script that fails is no reason to stop ----
   // (Cloudflare's Web Analytics adds its beacon to the page; the CSP refuses it.)
   for (const [path, what] of [['/', 'the app'], [new URL(link).pathname + new URL(link).hash, 'a shared note']]) {
@@ -148,13 +164,35 @@ try {
       const res = await fetch(r.url());
       // (Early in the page: Safari reports the refused script before the page has started.)
       const beacon = '<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v1" crossorigin="anonymous"></script>';
-      const html = (await res.text()).replace(/(<script src="[^"]*boot\.js"><\/script>)/, `$1${beacon}`);
+      const html = (await res.text()).replace(/(<script src="[^"]*boot\.js"[^>]*><\/script>)/, `$1${beacon}`);
       if (!html.includes(beacon)) throw new Error('the test page has no boot.js to put the beacon after');
       r.respond({ status: res.status, headers: Object.fromEntries(res.headers), body: html });
     });
     await p.goto(server.url + path);
     await wait(3000);
     check(!(await visible(p, '#fatal')), `${what}: another site's script failing (an injected beacon) doesn't stop it`);
+    await p.close();
+  }
+
+  // ---- …nor is a script the browser, or an extension, put in the page ----
+  // (Brave on a phone: its failure reaches the page as "Script error." with no file. An inline
+  // one's failure names the page itself.)
+  for (const [path, what] of [['/', 'the app'], [new URL(link).pathname + new URL(link).hash, 'a shared note']]) {
+    const p = await newPage();
+    await p.evaluateOnNewDocument(() => {
+      // (Once the page is parsed: boot.js has run, the modules haven't.)
+      document.addEventListener('readystatechange', () => {
+        if (document.readyState !== 'interactive') return;
+        window.failedBeforeStart = !window.plimStarted;
+        window.dispatchEvent(new ErrorEvent('error', { message: 'Script error.' }));
+        window.dispatchEvent(new ErrorEvent('error', { message: 'Uncaught TypeError: not Plim’s', filename: location.href, lineno: 1 }));
+      });
+    });
+    await p.goto(server.url + path);
+    check(await until(p, () => window.plimStarted === true), `${what}: starts with scripts of the browser's failing in it`);
+    check(await p.evaluate(() => window.failedBeforeStart === true), `… which failed before it started`);
+    await wait(1000);
+    check(!(await visible(p, '#fatal')), `… and that doesn't stop it ("Script error." with no file; an inline script's error)`);
     await p.close();
   }
 

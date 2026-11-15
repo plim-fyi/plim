@@ -1,7 +1,6 @@
-// Loaded before the page's modules, as a plain script: if they fail before the
-// page has started (a file that didn't load, or one that doesn't fit the
-// others), it says so, with a Reload button, instead of leaving a blank page
-// (#134). The page sets `window.plimStarted` once its modules have run, and
+// A plain script, in <head>, that starts the page's modules: if they fail to
+// start (a file that didn't load, or one that doesn't fit the others), it says
+// so, with a Reload button, instead of leaving a blank page (#134). The page
 // can call `window.plimFatal(title, error)` itself for a failure later on.
 
 // The theme (#21, Settings → Appearance): light, dark, or as the system has it, this device only.
@@ -80,28 +79,23 @@
     show(title, String(err?.message ?? err ?? ''));
   };
 
-  // (Capturing: a script or stylesheet that fails to load reports on its element, not the window.)
-  addEventListener(
-    'error',
-    (e) => {
-      if (window.plimStarted) return;
-      // Only Plim's own scripts. Others aren't its: a proxy in front can add one (Cloudflare's
-      // Web Analytics beacon), which the page's CSP then refuses, and the page is fine without it.
-      const own = (url) => {
-        try {
-          return new URL(url, location.href).origin === location.origin;
-        } catch {
-          return false;
-        }
-      };
-      const el = e.target;
-      if (el instanceof HTMLScriptElement) {
-        if (own(el.src)) show('Plim couldn’t start', `Couldn’t load ${new URL(el.src).pathname}`);
-        return;
-      }
-      if (e instanceof ErrorEvent && (!e.filename || own(e.filename))) show('Plim couldn’t start', e.message || 'A script failed.');
-      // (Other elements failing, e.g. an image, don't stop the page.)
-    },
-    true,
-  );
+  // The page's modules start from here (data-start, beside this file: app.js, or guest.js on a
+  // shared note's page), so that their failing is this import's to catch: a file that didn't
+  // load, anywhere among them, or one that threw as it started. Nothing else can put the screen
+  // up. It used to be a listener for every error on the page, guessing whose each was, and
+  // scripts that aren't Plim's fail there too: one a proxy adds (Cloudflare's Web Analytics
+  // beacon, which the CSP refuses), one the browser or an extension puts in (Brave on a phone:
+  // "Script error."). The page is fine without those.
+  // (Once the page is parsed, as a <script type="module"> would run: the modules look up its
+  // elements as they start. The page's <link rel="modulepreload"> fetches the file meanwhile.)
+  const me = document.currentScript;
+  const entry = me?.dataset.start && new URL(me.dataset.start, me.src).href;
+  const start = () =>
+    import(entry).catch((e) => {
+      console.error(e);
+      show('Plim couldn’t start', String(e?.message ?? e ?? 'A script failed.'));
+    });
+  if (!entry) return;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
 })();
