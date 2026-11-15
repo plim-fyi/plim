@@ -353,7 +353,9 @@ async fn versioned_asset_urls() {
     let html = String::from_utf8(body).unwrap();
     let at = html.find(r#"src="/v/"#).expect("versioned script") + r#"src="/v/"#.len();
     let version = &html[at..at + 12];
-    assert!(html.contains(&format!(r#"src="/v/{version}/app.js""#)));
+    // boot.js starts app.js from data-start, resolved against its own (versioned) address.
+    assert!(html.contains(&format!(r#"src="/v/{version}/boot.js" data-start="app.js""#)));
+    assert!(html.contains(&format!(r#"<link rel="modulepreload" href="/v/{version}/app.js""#)));
     assert!(html.contains(&format!(r#"href="/v/{version}/style.css""#)));
     assert_eq!(version, plim_server::assets::version(&config(":memory:", 0, false).web_dir).unwrap());
 
