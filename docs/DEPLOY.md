@@ -36,13 +36,23 @@ Each setting is also read by its name from before the rename, `TIRO_*` (`TIRO_DB
 
 ## Container
 
-The `Containerfile` builds a ~30 MB image: a distroless runtime, a non-root user, and the database in the `/data` volume. Podman and Docker both work.
+The server's image is about 35 MB: a distroless runtime, a non-root user, and the database in the `/data` volume. Podman and Docker both work.
+
+**The published image**, `ghcr.io/plim-fyi/plim`, for amd64 and arm64 (a Raspberry Pi 4 or 5, an ARM server). It's built from this repository's `Containerfile` by its [Image workflow](../.github/workflows/image.yml), on every change to main: `latest` is main as it is now, `sha-<commit>` a particular commit, to stay on or go back to.
+
+```sh
+podman run -d --name plim -v plim-data:/data \
+  -p 127.0.0.1:3000:3000 -p 127.0.0.1:3001:3001 \
+  -e PLIM_ADMIN_ADDR=0.0.0.0:3001 -e PLIM_ADMIN_ALLOW_NONLOOPBACK=1 \
+  ghcr.io/plim-fyi/plim:latest
+```
+
+(Docker: the same with `docker run`.) Then put HTTPS in front of `127.0.0.1:3000` (see **Ports** below, and [Behind a Cloudflare Tunnel](#behind-a-cloudflare-tunnel)); the admin dashboard is on `127.0.0.1:3001`.
+
+**Or build it yourself**, from your checkout, and run `plim` in place of `ghcr.io/plim-fyi/plim:latest` above:
 
 ```sh
 podman build --format docker -t plim .     # or: docker build -f Containerfile -t plim .
-podman run -d --name plim -v plim-data:/data \
-  -p 127.0.0.1:3000:3000 -p 127.0.0.1:3001:3001 \
-  -e PLIM_ADMIN_ADDR=0.0.0.0:3001 -e PLIM_ADMIN_ALLOW_NONLOOPBACK=1 plim
 ```
 
 `--format docker` keeps the image's built-in health check; Podman's default OCI format drops it.
@@ -62,8 +72,9 @@ loginctl enable-linger $USER          # keep running after you log out
 - Keep the admin port on `127.0.0.1` and reach it from another machine with `ssh -L 3001:127.0.0.1:3001 <host>`, or put it behind a reverse proxy with a sign-in of its own (one that sets a cookie): the dashboard's API calls send the proxy's cookie along (`credentials: same-origin`). The dashboard accepts only `Host: localhost` or `127.0.0.1` (a DNS-rebinding guard), so the proxy must send that, e.g. nginx `proxy_set_header Host 127.0.0.1:3001`.
 
 **Upgrades:**
-- systemd unit: build or load the new `plim` image, then `systemctl --user restart container-plim`. The unit was generated with `--new`, so it recreates the container from the new image.
-- Without systemd: build or load the new image, `podman rm -f plim`, then the same `podman run` as before.
+- The new image: `podman pull ghcr.io/plim-fyi/plim:latest` (or build your own again).
+- systemd unit: then `systemctl --user restart container-plim`. The unit was generated with `--new`, so it recreates the container from the new image.
+- Without systemd: then `podman rm -f plim`, and the same `podman run` as before.
 - Data lives in the volume and survives.
 - Pages already open notice the new version (each API answer names it, as `X-Tiro-Version`) and offer **Plim was updated · Reload**.
 
@@ -113,7 +124,8 @@ podman network create --subnet 10.89.42.0/24 plim
 podman run -d --name plim --network plim --ip 10.89.42.5 -v plim-data:/data \
   -p 127.0.0.1:3000:3000 -p 127.0.0.1:3001:3001 \
   -e PLIM_ADMIN_ADDR=0.0.0.0:3001 -e PLIM_ADMIN_ALLOW_NONLOOPBACK=1 \
-  -e PLIM_TRUSTED_PROXIES=10.89.42.5 -e PLIM_CLIENT_IP_HEADER=cf-connecting-ip plim
+  -e PLIM_TRUSTED_PROXIES=10.89.42.5 -e PLIM_CLIENT_IP_HEADER=cf-connecting-ip \
+  ghcr.io/plim-fyi/plim:latest
 ```
 
 The host `cloudflared` reaches plim through the published port, so plim sees its own address, `10.89.42.5`. Trusting that address means trusting everything that comes through port 3000, which is safe only because **port 3000 is published on `127.0.0.1`**:
@@ -130,7 +142,8 @@ Rules for this setup:
 podman run -d --name plim -v plim-data:/data \
   -p 127.0.0.1:3000:3000 -p 127.0.0.1:3001:3001 \
   -e PLIM_ADMIN_ADDR=0.0.0.0:3001 -e PLIM_ADMIN_ALLOW_NONLOOPBACK=1 \
-  -e PLIM_TRUSTED_PROXIES=<server LAN IP> -e PLIM_CLIENT_IP_HEADER=cf-connecting-ip plim
+  -e PLIM_TRUSTED_PROXIES=<server LAN IP> -e PLIM_CLIENT_IP_HEADER=cf-connecting-ip \
+  ghcr.io/plim-fyi/plim:latest
 ```
 
 The same loopback-only rule applies. To find the address, start plim once without the two `PLIM_*` proxy variables, visit the site through Cloudflare, and read it from the `podman logs plim` warning. If the address later changes (DHCP), plim falls back to one shared rate limit and logs the new address.
@@ -150,7 +163,8 @@ This is stricter: only the tunnel's own fixed address is trusted, so even progra
 podman network create --subnet 10.89.42.0/24 plim
 podman run -d --name plim --network plim -v plim-data:/data -p 127.0.0.1:3001:3001 \
   -e PLIM_ADMIN_ADDR=0.0.0.0:3001 -e PLIM_ADMIN_ALLOW_NONLOOPBACK=1 \
-  -e PLIM_TRUSTED_PROXIES=10.89.42.10 -e PLIM_CLIENT_IP_HEADER=cf-connecting-ip plim
+  -e PLIM_TRUSTED_PROXIES=10.89.42.10 -e PLIM_CLIENT_IP_HEADER=cf-connecting-ip \
+  ghcr.io/plim-fyi/plim:latest
 echo 'TUNNEL_TOKEN=<token>' > cloudflared.env && chmod 600 cloudflared.env
 podman run -d --name cloudflared --network plim --ip 10.89.42.10 --env-file cloudflared.env \
   docker.io/cloudflare/cloudflared:latest tunnel --no-autoupdate run

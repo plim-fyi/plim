@@ -87,6 +87,14 @@ Everything here works the same on plim.fyi and on a server of your own.
 
 ## Quick start
 
+With Podman or Docker, from the published image (amd64 and arm64, built from this repository on every change to main):
+
+```sh
+podman run -d --name plim -p 127.0.0.1:3000:3000 -v plim-data:/data ghcr.io/plim-fyi/plim:latest
+```
+
+Or from the source, with Rust:
+
 ```sh
 cargo run -p plim-server     # http://127.0.0.1:3000
 ```
@@ -401,7 +409,7 @@ cd tools/screenshots && npm ci && npm run shots
 | `CHANGELOG.md` | What's in each release of `plim` ([Releases](#releases)). |
 | `tools/vendor/` | Builds `web/vendor/` (Yjs, CodeMirror with its markdown parser, and `y-codemirror.next`) from pinned versions: `npm ci && npm run build`, and `npm run check` to verify. [How to update them](tools/vendor/README.md). |
 | `docs/` | [How notes sync](docs/SYNC.md), [Deploying](docs/DEPLOY.md) (with `plim-mcp.service`, the connector as a user service), the [terminal client's screenshots](docs/SCREENSHOTS-TUI.md), and the images the README shows. |
-| `Containerfile` | The server's container image (see [Deploying](docs/DEPLOY.md#container)). |
+| `Containerfile` | The server's container image (see [Deploying](docs/DEPLOY.md#container)), published as `ghcr.io/plim-fyi/plim` by `.github/workflows/image.yml`. |
 | `Containerfile.cli` | Builds the terminal client as one static Linux binary (see [Terminal client](#terminal-client)). |
 
 ## Known limitations

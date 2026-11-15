@@ -1,0 +1,112 @@
+# The server's container image, ghcr.io/plim-fyi/plim, built from this repository's Containerfile on
+# every change to main, for amd64 and arm64: each on a runner of its own architecture (no
+# emulation), pushed by digest, then joined into one multi-arch image tagged `latest` and
+# `sha-<commit>`. Built here, from the tree you can read, with this workflow's token: what an image
+# was made from is the commit its tag names. How to run it: docs/DEPLOY.md, "Container".
+name: Image
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: false # (a push of the image half done is left to finish)
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/plim
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: The image's name in lower case (the registry's rule)
+        run: echo "IMAGE=${IMAGE,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          labels: |
+            org.opencontainers.image.title=plim
+            org.opencontainers.image.description=Plim's server: end-to-end encrypted Markdown notes
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,scope=${{ matrix.platform }},mode=max
+      - name: Its digest, for the join
+        run: |
+          mkdir -p digests
+          d='${{ steps.build.outputs.digest }}'
+          touch "digests/${d#sha256:}"
+          echo "PLATFORM=${{ matrix.platform }}" | tr / - >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ env.PLATFORM }}
+          path: digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  join:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: The image's name in lower case (the registry's rule)
+        run: echo "IMAGE=${IMAGE,,}" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          path: digests
+          pattern: digest-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+      - name: One image for both architectures, tagged
+        working-directory: digests
+        run: |
+          tags=()
+          while read -r t; do tags+=(-t "$t"); done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          sources=()
+          for d in *; do sources+=("$IMAGE@sha256:$d"); done
+          docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+      - name: Check it
+        run: docker buildx imagetools inspect "$IMAGE:latest"
