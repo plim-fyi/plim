@@ -1,8 +1,19 @@
 # Changelog: the terminal client, `plim` (`tiro` before 0.15.0)
 
-Each release of `plim`, newest first. The web app and server aren't numbered: they deploy from
-main as each change merges. Each release's binary: [the releases](https://github.com/plim-fyi/plim/releases)
-(from 0.20.0).
+Each release of `plim`, newest first. The web app and server deploy to plim.fyi from main as each
+change merges; from 0.21.0 a release also numbers them, as the server's container image
+`ghcr.io/plim-fyi/plim:<version>`, and says what they gained since the last. Each release's binary:
+[the releases](https://github.com/plim-fyi/plim/releases) (from 0.20.0).
+
+## 0.21.0
+
+- **The terminal client is unchanged** since 0.20.3, apart from its version: this release is for the server and the web app.
+- **The server as a container image, for each release:** `ghcr.io/plim-fyi/plim:0.21.0` (and `0.21`, `latest`), for amd64 and arm64 (a Raspberry Pi 4 or 5, an ARM server), built by the public repository's own workflow from the tree of this release. `podman run -d --name plim -p 127.0.0.1:3000:3000 -v plim-data:/data ghcr.io/plim-fyi/plim:latest` runs one ([README](README.md#quick-start), [Deploying](docs/DEPLOY.md#container)).
+- **The web app stays unlocked across reloads:** a refresh, an update's Reload, or a phone dropping the tab opens your notes again without the passkey, until Log out, Forget this device, or 30 days without using Plim on that device. The recovery phrase's entropy is kept on the device under a key the browser made non-extractable; nothing new goes to the server. **Settings → Sign-in & security → This device → Stay unlocked** turns it off (auto-lock applies again then). The trade-off is in the README's Known limitations.
+- **Import notes:** Settings → Account → **Import notes** takes Markdown and text files, a folder of them, or a zip (Plim's own export, an Obsidian vault, Bear's Markdown export), each file a note, encrypted on the device; its folders become a tag, and importing an export twice makes no copies.
+- **"Plim couldn't start" only when Plim's own scripts fail:** a script the browser or an extension puts in the page (Brave on a phone) no longer stops the app.
+- **A note opening in Preview** draws its header at its final width at once, instead of moving 16 px as it opens.
+- **Settings → Connections:** the terminal client's row shows its one-line install.
 
 ## 0.20.3
 
