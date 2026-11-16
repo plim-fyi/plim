@@ -1,13 +1,14 @@
-//! Signing in and out: `plim init`, `login`, `remember`, `logout`, `delete-account`.
+//! Signing in and out: `plim init`, `login`, `logout`, `delete-account`, `uninstall`.
 
 use std::io::IsTerminal;
 
 use anyhow::{Result, bail};
-use plim_core::crypto::{self, generate_mnemonic, lock_seed, mnemonic_to_seed, parse_mnemonic, unlock_seed};
+use plim_core::crypto::{self, generate_mnemonic, mnemonic_to_seed, parse_mnemonic};
 
 use crate::api::{Api, ApiError};
 use crate::config::{self, Device};
-use crate::prompt::{new_device_passphrase, offer_to_remember, prompt_line, prompt_secret};
+use crate::keychain::{Kind, Store};
+use crate::prompt::{prompt_line, prompt_secret};
 use crate::session::{create_account, identity_from_seed};
 use crate::vault::open_session;
 use crate::{keychain, store};
@@ -48,15 +49,13 @@ pub(crate) async fn init(server: Option<&str>) -> Result<()> {
         // Non-interactive (scripts/tests): print the phrase to stdout.
         println!("{phrase}");
     }
-    let passphrase = new_device_passphrase()?;
     let seed = mnemonic_to_seed(&phrase)?;
     let identity = identity_from_seed(&seed);
     let server_url = config::server_url(server, None);
     let api = Api::new(&server_url);
     eprintln!("Creating your vault on {server_url} (a few seconds of proof-of-work)…");
     let account_id = create_account(&api, &identity).await?;
-    save_device(&server_url, &account_id, &identity.pubkey_hash, seed.to_vec(), passphrase.clone()).await?;
-    offer_to_remember(&account_id, &passphrase)?;
+    save_device(&server_url, &account_id, &identity.pubkey_hash, &seed)?;
     eprintln!("Done. Run `plim` to start writing.");
     Ok(())
 }
@@ -75,37 +74,21 @@ pub(crate) async fn login(server: Option<&str>) -> Result<()> {
         ApiError::Http(401, _) => anyhow::anyhow!("no vault found for this phrase on {server_url}"),
         e => e.into(),
     })?;
-    let passphrase = new_device_passphrase()?;
-    save_device(&server_url, &login.account_id, &identity.pubkey_hash, seed.to_vec(), passphrase.clone()).await?;
-    offer_to_remember(&login.account_id, &passphrase)?;
+    save_device(&server_url, &login.account_id, &identity.pubkey_hash, &seed)?;
     eprintln!("Signed in. Run `plim` to open your notes.");
     Ok(())
 }
 
-/// `plim remember` (#360): the passphrase, checked against this device's key, kept on this machine;
-/// `--off` forgets it.
-pub(crate) async fn remember(off: bool) -> Result<()> {
-    let device = config::require_device()?;
-    if off {
-        let was = keychain::forget(&device.account_id);
-        eprintln!("{}", if was { "Forgotten: plim will ask for the passphrase." } else { "Nothing was remembered on this machine." });
-        return Ok(());
+/// The device's key kept on this machine (keychain.rs), then the device file saying where; and
+/// where, said.
+pub(crate) fn save_device(server: &str, account_id: &str, pubkey_hash: &str, seed: &[u8]) -> Result<()> {
+    let store = keychain::put(account_id, Kind::Device, seed)?;
+    config::save_device(&Device::new(server, account_id, pubkey_hash, store))?;
+    eprintln!("This device's key is {}.", keychain::describe(store, account_id, Kind::Device));
+    if store == Store::File {
+        eprintln!("(No keychain here. Anyone who can read your files can open your notes; `plim logout` removes it.)");
     }
-    let passphrase = match crate::config::env("PASSPHRASE") {
-        Some(p) => p,
-        None => prompt_secret("Device passphrase: ")?,
-    };
-    let locked = device.locked_seed()?;
-    let check = passphrase.clone();
-    tokio::task::spawn_blocking(move || unlock_seed(&locked, &check).map_err(|_| anyhow::anyhow!("wrong passphrase"))).await??;
-    let store = keychain::set(&device.account_id, &passphrase)?;
-    eprintln!("Remembered {}. plim won't ask for it here; `plim remember --off` forgets it.", store.describe());
     Ok(())
-}
-
-pub(crate) async fn save_device(server: &str, account_id: &str, pubkey_hash: &str, seed: Vec<u8>, passphrase: String) -> Result<()> {
-    let locked = tokio::task::spawn_blocking(move || lock_seed(&seed, &passphrase)).await?;
-    config::save_device(&Device::new(server, account_id, pubkey_hash, &locked))
 }
 
 pub(crate) fn logout(force: bool) -> Result<()> {
@@ -118,13 +101,13 @@ pub(crate) fn logout(force: bool) -> Result<()> {
         bail!("some edits haven't been uploaded yet — run `plim ls` while online first, or use --force to discard them");
     }
     config::remove_device()?;
-    keychain::forget(&device.account_id);
+    keychain::forget_all(&device.account_id);
     eprintln!("Signed out. Your recovery phrase is still needed to sign in again.");
     Ok(())
 }
 
-/// Remove plim from this machine: its config (the signed-in device's key) and data (the local
-/// copies, the editor's scratch), the passphrase remembered in the keychain, the scratch folder
+/// Remove plim from this machine: its config (the signed-in device) and data (the local copies,
+/// the editor's scratch, the key if it's in a file), what it keeps in the keychain, the scratch folder
 /// under XDG_RUNTIME_DIR, and the binary itself (`exe`; on Linux and macOS a running program's
 /// file can be removed). The notes stay on the server, for the recovery phrase.
 pub(crate) fn uninstall(yes: bool, exe: Option<std::path::PathBuf>) -> Result<()> {
@@ -139,7 +122,7 @@ pub(crate) fn uninstall(yes: bool, exe: Option<std::path::PathBuf>) -> Result<()
         }
     }
     if let Some(d) = &device {
-        eprintln!("  - the passphrase remembered for the account signed in here, if any");
+        eprintln!("  - the key of the account signed in here, and its MCP connection's, from the keychain if they're there");
         eprintln!("Your notes stay on the server ({}): your recovery phrase opens them.", d.server);
     }
     if !yes {
@@ -151,7 +134,7 @@ pub(crate) fn uninstall(yes: bool, exe: Option<std::path::PathBuf>) -> Result<()
         }
     }
     if let Some(d) = &device {
-        keychain::forget(&d.account_id);
+        keychain::forget_all(&d.account_id);
     }
     for p in [Some(&paths.config), Some(&paths.data), scratch.as_ref()].into_iter().flatten() {
         if p.exists() {
@@ -187,7 +170,7 @@ pub(crate) async fn delete_account(server: Option<&str>) -> Result<()> {
         let _ = std::fs::remove_file(format!("{}{suffix}", db.display()));
     }
     config::remove_device()?;
-    keychain::forget(&account_id);
+    keychain::forget_all(&account_id);
     eprintln!("Your account was deleted, and this device signed out.");
     Ok(())
 }

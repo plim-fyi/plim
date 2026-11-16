@@ -2,9 +2,9 @@
 //! `tools/list`, `tools/call` and `ping` (notifications get no answer), the tools offered, and what
 //! the client is told. The connector's `Conn` does each tool's work (connector/tools.rs).
 //!
-//! There's no MCP server on stdin/stdout any more: it held this device's whole vault key, so what
-//! it showed was the process's rule, not cryptography. A client reaches the notes shared with
-//! agents through the connector, as Claude's apps do; in a terminal, the `plim` commands.
+//! The MCP server on stdin/stdout (`plim mcp`, local_mcp.rs) is a connection too, since 0.22.0: it
+//! holds a connection's secret, not this device's vault key (which it held before, so what it
+//! showed was the process's rule, not cryptography), and runs the connector's `Conn`.
 
 use anyhow::{Context, Result};
 use serde_json::{Value, json};

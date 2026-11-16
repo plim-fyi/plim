@@ -1,5 +1,5 @@
-//! Local files: the device key file (seed locked with the device passphrase)
-//! and per-account data directories.
+//! Local files: the device file (the account signed in here, and where its key is kept: see
+//! keychain.rs) and per-account data directories.
 
 use std::fs;
 use std::io::Write;
@@ -7,10 +7,9 @@ use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD as B64;
 use serde::{Deserialize, Serialize};
-use plim_core::crypto::LockedSeed;
+
+use crate::keychain::{self, Kind, Store};
 
 pub const DEFAULT_SERVER: &str = "http://127.0.0.1:3000";
 
@@ -42,38 +41,35 @@ pub fn private_dir(path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-/// The account this device is signed in to, with its seed locked by the device passphrase.
+/// The account this device is signed in to, and where its key is kept.
 #[derive(Serialize, Deserialize)]
 pub struct Device {
     pub server: String,
     pub account_id: String,
     pub pubkey_hash: String,
-    pub salt: String,
-    pub nonce: String,
-    pub ciphertext: String,
-    pub iterations: u32,
+    /// Where the key is (none in a device file from before 0.22.0, whose key was locked with a
+    /// device passphrase in the file itself: `ciphertext`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub store: Option<Store>,
+    #[serde(default, skip_serializing)]
+    ciphertext: Option<String>,
 }
 
 impl Device {
-    pub fn new(server: &str, account_id: &str, pubkey_hash: &str, locked: &LockedSeed) -> Self {
-        Device {
-            server: server.into(),
-            account_id: account_id.into(),
-            pubkey_hash: pubkey_hash.into(),
-            salt: B64.encode(locked.salt),
-            nonce: B64.encode(locked.nonce),
-            ciphertext: B64.encode(&locked.ciphertext),
-            iterations: locked.iterations,
-        }
+    pub fn new(server: &str, account_id: &str, pubkey_hash: &str, store: Store) -> Self {
+        Device { server: server.into(), account_id: account_id.into(), pubkey_hash: pubkey_hash.into(), store: Some(store), ciphertext: None }
     }
 
-    pub fn locked_seed(&self) -> Result<LockedSeed> {
-        Ok(LockedSeed {
-            salt: B64.decode(&self.salt)?.try_into().map_err(|_| anyhow::anyhow!("corrupt device file"))?,
-            nonce: B64.decode(&self.nonce)?.try_into().map_err(|_| anyhow::anyhow!("corrupt device file"))?,
-            ciphertext: B64.decode(&self.ciphertext)?,
-            iterations: self.iterations,
-        })
+    /// The seed this device's keys come from, from where it's kept.
+    pub fn seed(&self) -> Result<Vec<u8>> {
+        let Some(store) = self.store else {
+            if self.ciphertext.is_some() {
+                bail!("this device was signed in by plim before 0.22.0, with a device passphrase, which plim doesn't use any more: run `plim logout`, then `plim login` with your recovery phrase");
+            }
+            bail!("corrupt device file: run `plim logout`, then `plim login`");
+        };
+        keychain::get(store, &self.account_id, Kind::Device)
+            .map_err(|e| anyhow::anyhow!("this device's key is gone ({e}): run `plim logout`, then `plim login` with your recovery phrase"))
     }
 }
 

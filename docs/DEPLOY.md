@@ -185,7 +185,7 @@ Port 3000 doesn't need publishing: `cloudflared` reaches `plim:3000` over the ne
 
 ## The connector
 
-`plim mcp --http` (#369) lets Claude, and any other MCP client, connect to vaults on this server over the web ([README](../README.md#connecting-claude-over-the-web)): the only way an agent reaches notes, as there's no MCP server on stdin/stdout. It's the `plim` CLI binary, run as a service, with no account of its own; it holds no notes and no keys, only the key that seals Claude's tokens (`--secret-file`, made on first run: keep it, or every connection has to be made again).
+`plim mcp --http` (#369) lets Claude, and any other MCP client, connect to vaults on this server over the web ([README](../README.md#connecting-claude-over-the-web)), with no `plim` on their machine (on a machine with one, `plim mcp` does it on stdin/stdout). It's the `plim` CLI binary, run as a service, with no account of its own; it holds no notes and no keys, only the key that seals Claude's tokens (`--secret-file`, made on first run: keep it, or every connection has to be made again).
 
 1. Install `plim` on the server: a release's `plim-linux-amd64` ([Terminal client](../README.md#terminal-client) says how), or built from source.
 2. Run it as a user service: [`docs/plim-mcp.service`](plim-mcp.service) (edit `--server` and `--public-url`): copy it to `~/.config/systemd/user/`, then `systemctl --user daemon-reload`, `systemctl --user enable --now plim-mcp` and `loginctl enable-linger $USER`. It listens on `127.0.0.1:3010`.

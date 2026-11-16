@@ -208,7 +208,7 @@ More in [Terminal client screenshots](docs/SCREENSHOTS-TUI.md).
 curl -fsSL https://plim.fyi/install.sh | sh
 ```
 
-It downloads the binary for your machine from [the latest release](https://github.com/plim-fyi/plim/releases/latest), checks it against the release's `SHA256SUMS`, and puts it at `~/.local/bin/plim` (`PLIM_INSTALL_DIR=/usr/local/bin` for elsewhere; `PLIM_VERSION=0.20.2` for a particular release). **To update,** run the same line again: it says which version it went from and to. **To remove it,** `plim uninstall` takes away the binary, its config and data, the passphrase it remembered and its scratch folder; your notes stay on the server. The script is [short and readable](web/install.sh), served as part of the web app, so it's in the signed record of every deploy; what it does by hand:
+It downloads the binary for your machine from [the latest release](https://github.com/plim-fyi/plim/releases/latest), checks it against the release's `SHA256SUMS`, and puts it at `~/.local/bin/plim` (`PLIM_INSTALL_DIR=/usr/local/bin` for elsewhere; `PLIM_VERSION=0.20.2` for a particular release). **To update,** run the same line again: it says which version it went from and to. **To remove it,** `plim uninstall` takes away the binary, its config and data, its keys (from the keychain too) and its scratch folder; your notes stay on the server. The script is [short and readable](web/install.sh), served as part of the web app, so it's in the signed record of every deploy; what it does by hand:
 
 ```sh
 # Linux: plim-linux-amd64, one static binary for any x86-64 machine. A Mac: plim-macos (not signed by
@@ -229,8 +229,9 @@ plim --server https://notes.example.com login   # existing vault: enter your 12 
 plim                                     # open the TUI
 ```
 
-- `init` and `login` both ask for a **device passphrase**, which encrypts your key on this machine (the terminal can't use passkeys). After that you only need the passphrase, and the server URL is remembered.
-- **Not typing it every time:** `init` and `login` offer to remember the passphrase on the machine, and `plim remember` does it later (`plim remember --off` forgets it; `plim logout` does too). It's kept in the machine's keychain where there's one (GNOME Keyring, KWallet or KeePassXC on Linux, through the Secret Service; the Keychain on a Mac), unlocked along with your login. A machine without one, such as a headless server, keeps it in the Linux kernel's keyring instead: shared by your SSH logins and systemd timers, until the machine restarts or it goes 3 days unused; then `plim remember` again. Anyone who can run commands as you on that machine can open your notes while it's remembered.
+- **Where your key is kept:** after `init` or `login`, `plim` asks for nothing more. This device's key goes in the machine's keychain where there's one (GNOME Keyring, KWallet or KeePassXC on Linux, through the Secret Service; the Keychain on a Mac), unlocked along with your login. A machine without one (a headless server, a container, a systemd timer's session) keeps it in a file only you can read, `~/.local/share/plim/<account>.key` (mode `0600`; `plim` refuses it if anyone else can read it), as an SSH key without a passphrase. `init` and `login` say which. `PLIM_CREDENTIALS_STORE=keychain` or `=file` picks one. Either way, anyone who can run commands as you on that machine can open your notes until `plim logout`, which removes the key.
+- The server URL is remembered too.
+- **Signed in before 0.22.0?** Those versions locked the key with a device passphrase (and `plim remember` kept it). `plim` now asks you to sign in again once: `plim logout`, then `plim login` with your 12 words.
 - A server is reached over `https://`. Plain `http://` works only for one on this machine (`localhost`, `127.0.0.1`): to anywhere else your session and share keys would cross the network unencrypted, so `plim` refuses unless you pass `--insecure-http` (or set `PLIM_INSECURE_HTTP=1`).
 - `plim` needs the server to start. If the connection drops while it's open, edits stay in its encrypted outbox and upload the next time it reaches the server.
 
@@ -255,20 +256,21 @@ plim                                     # open the TUI
 - `plim add-link <link>`: add a note shared with you to your list
 - `plim share <title|id>`: share a note and print its edit and view links (`--new-links` replaces them; the old ones stop working, people's own links keep working); `--for Sam` (`--view`: read only) prints a link of Sam's own, to take back in the app's Share dialog
 - `plim unshare <title|id>`: stop sharing; its links stop working
-- `plim share <title|id> --agents` and `plim unshare <title|id> --agents`: share a note with agents, or stop: every agent you connect (through the connector) reads and edits it
+- `plim share <title|id> --agents` and `plim unshare <title|id> --agents`: share a note with agents, or stop: every agent you connect (through the connector, or `plim mcp`) reads and edits it
 - `plim rm <title|id>`
 - `plim delete-account`: delete your account and everything of it from the server (asks you to type DELETE)
 - `plim logout`
 - `--as NAME` on `add`, `append`, `edit`, `tag` and `untag` (or `PLIM_AS=NAME` in the environment; the flag wins): written as an app or a script, not as you. The app marks it as an AI's edits are: its letter in the margin, "by NAME" in the list, the note in Connected with NAME's letter on its row, and History keeps the note before and after, the version named "NAME · two words". Set `PLIM_AS=Claude` in an agent's environment to mark everything it runs through `plim`. It's a label, not proof: whoever runs `plim` holds your key, and could write as anyone.
-- `PLIM_PASSPHRASE`, when set, is used before a remembered one. It's visible to other processes running as your user, so prefer `plim remember`.
-- **With only a link** (no account, no passphrase, nothing kept on the machine): `plim cat <link>`, and with an edit link `plim append <link> "text"`. The link is the key, and it opens **only that note**: give a script or an AI tool a note's link instead of your passphrase, and take access back with Replace links or Stop sharing.
+- **With only a link** (no account, nothing kept on the machine): `plim cat <link>`, and with an edit link `plim append <link> "text"`. The link is the key, and it opens **only that note**: give a script or an AI tool a note's link instead of your account, and take access back with Replace links or Stop sharing.
+- **For an AI on this machine,** `plim mcp` (below): it opens only the notes you share with agents, not your key.
 
 **Local files:**
-- the device key file: `~/.config/plim/device.json`
+- the device file (the account signed in here, the server, where the key is): `~/.config/plim/device.json`
+- the key, when there's no keychain: `~/.local/share/plim/<account>.key`; `plim mcp`'s secret, likewise: `<account>.mcp.key`
 - the encrypted outbox and rollback-detection state: `~/.local/share/plim/<account>.db`
-- both are mode `0600`
+- all are mode `0600`
 - `PLIM_HOME` overrides both locations
-- before 0.17.0 these were `~/.config/tiro` and `~/.local/share/tiro`, and the remembered passphrase was under `tiro` in the keychain: move the two folders (or sign in again), then `plim remember` again
+- before 0.17.0 these were `~/.config/tiro` and `~/.local/share/tiro`: move the two folders, or sign in again
 - every `PLIM_*` setting is also read by its old name, `TIRO_*`, when the new one isn't set
 
 ### Building `plim` yourself
@@ -292,7 +294,7 @@ A release is numbered by the terminal client's version ([SemVer](https://semver.
 
 ## Claude and other MCP clients
 
-An MCP client (claude.ai and the Claude apps, Claude Code, Codex, any other) reaches your notes through a Plim server's **connector**, over the web ([below](#connecting-claude-over-the-web)). There's no MCP server on stdin/stdout: `plim mcp` on its own refuses, and in a terminal you use the `plim` commands. Every answer names the note's address, so Claude can link to it.
+An MCP client (claude.ai and the Claude apps, Claude Code, Codex, any other) reaches your notes through a Plim server's **connector**, over the web ([below](#connecting-claude-over-the-web)), or, on a machine where `plim` is signed in, through `plim mcp` on stdin/stdout ([below](#on-this-machine-plim-mcp)). Either is a connection of its own, and sees the same notes. Every answer names the note's address, so Claude can link to it.
 
 **It sees the notes you share with agents, and nothing else.** Each note has a switch, **Shared with agents** (in the app, the **Agents** switch first in a note's Share; in a terminal, `plim share <note> --agents`): every agent you connect reads and edits the notes it's on. Tags are only topics: they share nothing. Notes an agent makes start shared with agents; yours start private.
 
@@ -305,9 +307,23 @@ In the app, the sidebar has three views: **Notes** (every note), **Agents** (the
 - **History, read only:** `note_history` lists a note's versions (numbered, who made each, lines added and removed) and `read_version` shows one, or what it changed: only versions from when it was given the note, so what you deleted before sharing stays out of its reach. It can't restore one: you do, in the app or with `plim restore`.
 - **No delete:** it can't delete a note.
 
-**On a machine with `plim`, an agent that runs commands** (Claude Code) could run `plim cat` itself, with the device's whole key. To hold it to the notes shared with agents, deny that in its settings (`"permissions": { "deny": ["Bash(plim:*)"] }`, and `Bash(tiro:*)` too where an old `tiro` binary is still installed) and don't give it a skill that runs `plim`.
+**On a machine with `plim`, an agent that runs commands** (Claude Code) could run `plim cat` itself, with the device's whole key. To hold it to the notes shared with agents, deny that in its settings (`"permissions": { "deny": ["Bash(plim:*)"] }`, and `Bash(tiro:*)` too where an old `tiro` binary is still installed; `Bash(plim mcp:*)` can stay allowed) and don't give it a skill that runs `plim`. Give it `plim mcp` instead.
 
-**From older versions:** up to 0.17.0, `plim mcp` alone served the notes on stdin/stdout, decrypting with the device's whole key: what it showed was the `plim` process's rule, not cryptography. It's gone: remove it from a client's settings and add the connector instead. Before 0.14.0 a connection was given tags, and reached the notes with them; the first time the app opens after the change, it lists the notes agents reached that way and asks which to share with agents (all ticked); the rest stay yours, and get new keys.
+**From older versions:** from 0.17.0 to 0.21.0 there was no `plim mcp` on stdin/stdout; before then it decrypted with the device's whole key, so what it showed was the `plim` process's rule, not cryptography. Since 0.22.0 it's a connection, as below. Before 0.14.0 a connection was given tags, and reached the notes with them; the first time the app opens after the change, it lists the notes agents reached that way and asks which to share with agents (all ticked); the rest stay yours, and get new keys.
+
+### On this machine: `plim mcp`
+
+For an AI that runs on a machine where `plim` is signed in (Claude Code, an editor's agent), with no connector:
+
+```sh
+plim mcp setup                       # once: makes the connection, prints what to add
+claude mcp add plim -- plim mcp      # Claude Code; other clients: command "plim", args ["mcp"]
+```
+
+- `plim mcp setup` (`--name` for its name in Settings → Connections) makes a connection the way your app does when Claude connects, with this device's key, and gives it the notes shared with agents now. Only the connection's secret is kept on the machine (the keychain, else `<account>.mcp.key`, as the device's key is).
+- `plim mcp` then answers on stdin/stdout with the connector's tools, holding only that secret: it opens what the connection's holders open, the notes shared with agents, and nothing else. Your device's key isn't read.
+- It's in **Settings → Connections** like any connection: what it did, and **Disconnect**, which cuts it off at once. `plim mcp remove` disconnects it from the terminal.
+- A note you share with agents after setup reaches it once one of your Plim apps has been open, as for the connector; so does a note it makes, into your list.
 
 ### Connecting Claude over the web
 

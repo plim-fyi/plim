@@ -89,28 +89,41 @@ pub async fn home_of(sess: &Session, r: &ShareRef) -> Result<ShareHome> {
 /// A link of their own for `label` (#369): a holder registered with the share's keys sealed to
 /// it (the seed to edit, the read keys to view), kept in the note's entry; the caller saves the list.
 pub async fn add_holder(sess: &Session, index: &DocSync, meta: &NoteMeta, label: &str, edit: bool) -> Result<Holder> {
+    add_holder_for(sess, index, meta, label, edit, None).await
+}
+
+/// The same, for a connection (`connection`: its id and secret): the holder's secret comes from
+/// the connection's and the holder's id (so the connection finds it with its own secret), the
+/// server counts the holder as the connection's (what Disconnect takes back at once), and the
+/// note's entry says whose it is, as the web app's connections keeper (web/ui/shares.js
+/// addConnectionHolder) writes it.
+pub async fn add_holder_for(sess: &Session, index: &DocSync, meta: &NoteMeta, label: &str, edit: bool, connection: Option<(&str, &[u8; 32])>) -> Result<Holder> {
     let r = meta.share.as_ref().with_context(|| format!("\"{}\" isn't shared", meta.title))?;
     if r.role.as_deref() != Some("owner") {
         bail!("only whoever shared \"{}\" can give out links to it", meta.title);
     }
     let seed = key32(r.seed.as_deref().context("this share's seed isn't here")?)?;
     let k = share_keys(&seed);
-    let secret = random_bytes::<32>();
     let id = hex::encode(random_bytes::<16>());
+    let secret = match connection {
+        Some((_, conn_secret)) => plim_core::crypto::connection_holder_secret(conn_secret, &id),
+        None => random_bytes::<32>(),
+    };
+    let connection = connection.map(|(c, _)| c);
     let hk = holder_keys(&secret);
     let held = if edit { HeldKeys::Edit { seed } } else { HeldKeys::Read { enc_key: k.enc_key, pubkey: k.pubkey } };
     let sealed = seal_held_keys(&hk.seal_key, &id, &r.id, &held);
-    sess.api
-        .post(
-            "/holders",
-            &json!({
-                "holder_id": id, "share_id": r.id, "role": held.role(),
-                "token_hash": B64.encode(plim_core::sig::sha256(&hk.token)),
-                "nonce": B64.encode(sealed.nonce), "ciphertext": B64.encode(&sealed.ciphertext),
-            }),
-        )
-        .await?;
-    let holder = Holder { id, secret: B64.encode(secret), role: held.role().into(), label: label.into(), created: notes::now_ms() };
+    let mut body = json!({
+        "holder_id": id, "share_id": r.id, "role": held.role(),
+        "token_hash": B64.encode(plim_core::sig::sha256(&hk.token)),
+        "nonce": B64.encode(sealed.nonce), "ciphertext": B64.encode(&sealed.ciphertext),
+    });
+    if let Some(c) = connection {
+        body["connection_id"] = json!(c);
+    }
+    sess.api.post("/holders", &body).await?;
+    let extra = connection.map(|c| ("connection".to_string(), yrs::Any::from(c))).into_iter().collect();
+    let holder = Holder { id, secret: B64.encode(secret), role: held.role().into(), label: label.into(), created: notes::now_ms(), extra };
     let mut next = r.clone();
     next.holders.push(holder.clone());
     notes::set_share(&index.doc, &meta.id, Some(&next));
@@ -160,7 +173,7 @@ async fn close_or_reopen(sess: &Session, note_id: &str, what: &str) -> Result<se
 }
 
 /// Delete a share for good (its links stop working). Already gone counts as done.
-async fn delete_share(sess: &Session, id: &str) -> Result<()> {
+pub(crate) async fn delete_share(sess: &Session, id: &str) -> Result<()> {
     match signed(sess, reqwest::Method::DELETE, &format!("/shares/{id}"), action::DELETE_SHARE, id).await {
         Ok(_) | Err(ApiError::Http(404, _)) => Ok(()),
         Err(e) => Err(e).context("couldn't turn off the links, so nothing changed; try again"),
@@ -187,6 +200,7 @@ pub async fn share(sess: &Arc<Session>, index: &DocSync, meta: &NoteMeta, new_li
             }
             let mut r = r;
             r.holders = old.holders.clone();
+            r.extra = old.extra.clone(); // (`via`, as the web app keeps it)
             notes::set_share(&index.doc, &meta.id, Some(&r));
             reseal_holders(sess, &r).await;
             Ok(r)

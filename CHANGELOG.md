@@ -5,6 +5,12 @@ change merges; from 0.21.0 a release also numbers them, as the server's containe
 `ghcr.io/plim-fyi/plim:<version>`, and says what they gained since the last. Each release's binary:
 [the releases](https://github.com/plim-fyi/plim/releases) (from 0.20.0).
 
+## 0.22.0
+
+- **No device passphrase:** `init` and `login` keep this device's key in the machine's keychain (the Secret Service on Linux, the Keychain on a Mac), or, where there's none (a headless server, a container), in a file only you can read, `~/.local/share/plim/<account>.key` (`0600`; refused if anyone else can read it). Then nothing asks for anything. `PLIM_CREDENTIALS_STORE=keychain|file` picks one. `plim remember`, `PLIM_PASSPHRASE` and the kernel keyring (forgotten on a reboot or after 3 days) are gone. **A device signed in before 0.22.0 signs in again once:** `plim logout`, then `plim login` with your 12 words.
+- **`plim mcp` is back, as a connection:** `plim mcp setup` connects it to your notes as Claude's apps are connected, with a connection of its own in Settings → Connections; `claude mcp add plim -- plim mcp` then gives Claude Code (or any MCP client on the machine) the connector's tools on stdin/stdout. It holds only the connection's secret, not your key: it opens the notes you share with agents and nothing else, and Disconnect (or `plim mcp remove`) cuts it off at once.
+- **Sharing from the terminal keeps what the web app writes on a note's share:** which connection a holder is for, and which connection a note was shared for (`plim share --new-links` dropped them, so the app re-made a connection's access).
+
 ## 0.21.0
 
 - **The terminal client is unchanged** since 0.20.3, apart from its version: this release is for the server and the web app.

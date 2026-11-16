@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import puppeteer from 'puppeteer-core';
 import { TestServer, cleanEnv, wait } from './server.mjs';
+import { closeSettings, openSettings, until as pageUntil } from './web/harness.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = join(ROOT, 'docs/screenshots/tui');
@@ -25,7 +26,6 @@ const CHROME = process.env.CHROME ?? ['/usr/bin/chromium', '/usr/bin/google-chro
 const PORT = 3969;
 const COLS = 104;
 const ROWS = 30;
-const PASSPHRASE = 'correct horse battery';
 const SOCKET = `plim-shots-${process.pid}`;
 
 // ---------- tmux ----------
@@ -41,6 +41,8 @@ function type(text) {
   });
 }
 const screenText = () => tmux('capture-pane', '-p', '-t', 'shot');
+/** The screen with lines the pane wrapped joined back (`-J`), for text longer than its width. */
+const unwrapped = () => tmux('capture-pane', '-p', '-J', '-t', 'shot');
 
 async function until(check, what, timeout = 20000) {
   const end = Date.now() + timeout;
@@ -199,9 +201,10 @@ async function run(server, home) {
   const env = {
     PLIM_HOME: home, TERM: 'xterm-256color', PLIM_EDITOR: 'nvim', PATH: `${dirname(CLI)}:${process.env.PATH}`, HOME: home, LANG: 'C.UTF-8',
     XDG_CONFIG_HOME: join(home, '.config'), XDG_DATA_HOME: join(home, '.local/share'), XDG_STATE_HOME: join(home, '.local/state'), XDG_CACHE_HOME: join(home, '.cache'),
-    // No desktop keychain (#360): `plim remember` keeps the passphrase in the kernel's keyring, as on a
-    // server, never in the keychain of whoever runs this.
+    // No desktop keychain: the device's key is kept in a file in PLIM_HOME, as on a server, never in
+    // the keychain of whoever runs this.
     DBUS_SESSION_BUS_ADDRESS: 'unix:path=/nonexistent',
+    PLIM_CREDENTIALS_STORE: 'file',
   };
   tmux('-f', '/dev/null', 'new-session', '-d', '-s', 'shot', '-x', String(COLS), '-y', String(ROWS),
     ...Object.entries(env).flatMap(([k, v]) => ['-e', `${k}=${v}`]), 'bash --noprofile --norc');
@@ -216,7 +219,7 @@ async function run(server, home) {
   keys('C-l');
   await wait(200);
 
-  // 1. plim init: the 12 words, confirming three, the device passphrase
+  // 1. plim init: the 12 words, confirming three, the key kept on this machine
   type(`plim --server ${server.url} init`);
   keys('Enter');
   await waitFor('Press Enter');
@@ -232,21 +235,12 @@ async function run(server, home) {
   }
   await shot('01-init-2-confirm');
   keys('Enter');
-  await waitFor('Device passphrase:');
-  type(PASSPHRASE);
-  keys('Enter');
-  await waitFor('Repeat it:');
-  type(PASSPHRASE);
-  keys('Enter');
-  // (#360) Not remembered here: the steps below type it, or set PLIM_PASSPHRASE.
-  await waitFor('Remember the passphrase on this machine');
-  type('n');
-  keys('Enter');
+  // No passphrase (0.22.0): the key goes in the keychain, here (none) a file only you can read.
   await waitFor('Done. Run `plim`');
+  if (!unwrapped().includes('readable only by you') || unwrapped().includes('passphrase')) throw new Error(`init: the key should be kept in a file, nothing asked: ${screenText()}`);
   await shot('01-init-3-done');
 
   // Sample notes, added from the shell (hidden: cleared before the next shot)
-  await shell(`export PLIM_PASSPHRASE='${PASSPHRASE}'`, { clear: true });
   for (const [title, body] of NOTES) await shell(`printf '${title}\\n\\n${body}\\n' | plim add`);
 
   // 2. Scripting
@@ -340,7 +334,8 @@ async function run(server, home) {
   await until((s) => s.trimEnd().endsWith('$'), 'the prompt after quitting');
 
   // 7. Sign in on another machine: plim login
-  await shell('unset PLIM_PASSPHRASE && plim logout', { clear: true });
+  await shell('plim logout', { clear: true });
+  if (readdirSync(join(home, 'data')).some((f) => f.endsWith('.key'))) throw new Error('logout: the key file should be gone');
   keys('C-l');
   await wait(200);
   type(`plim --server ${server.url} login`);
@@ -348,22 +343,12 @@ async function run(server, home) {
   await waitFor('Recovery phrase (12 words):');
   type(words.join(' '));
   keys('Enter');
-  await waitFor('Device passphrase:');
-  type(PASSPHRASE);
-  keys('Enter');
-  await waitFor('Repeat it:');
-  type(PASSPHRASE);
-  keys('Enter');
-  // Remembered (#360): then a command asks for nothing, with no PLIM_PASSPHRASE.
-  await waitFor('Remember the passphrase on this machine');
-  keys('Enter');
   await waitFor('Signed in.');
-  if (!screenText().includes("Remembered in this machine's kernel keyring")) throw new Error(`login: the passphrase should be remembered: ${screenText()}`);
+  if (!unwrapped().includes('readable only by you')) throw new Error(`login: the key should be kept in a file: ${screenText()}`);
   await shot('07-login-1-signed-in');
+  // Then a command asks for nothing.
   await shell('plim ls < /dev/null; echo "ls: $?"', { clear: true });
-  if (!screenText().includes('ls: 0') || screenText().includes('passphrase')) throw new Error(`with the passphrase remembered, plim ls should just work: ${screenText()}`);
-  await shell('plim remember --off', { clear: true });
-  if (!screenText().includes('Forgotten')) throw new Error(`plim remember --off: ${screenText()}`);
+  if (!screenText().includes('ls: 0') || screenText().includes('passphrase')) throw new Error(`signed in, plim ls should just work: ${screenText()}`);
   keys('C-l');
 
   // 8. Shared notes (#80): shared in the web app, then read and edited here, in the share.
@@ -391,7 +376,6 @@ async function run(server, home) {
     await web.keyboard.press('Escape');
   };
   await shareInWeb('Groceries');
-  await shell(`export PLIM_PASSPHRASE='${PASSPHRASE}'`, { clear: true });
   // (The web app saves the list a moment after the change: ask again until it's there.)
   for (let i = 0; i < 10; i++) {
     await shell('plim ls', { clear: true });
@@ -418,8 +402,8 @@ async function run(server, home) {
   await web.waitForFunction(() => document.getElementById('editor').noteText?.().includes('(from the terminal)'), { timeout: 20000 })
     .catch(async () => { throw new Error(`the web app should get the terminal's edit to the shared note: ${JSON.stringify(await web.evaluate(() => document.getElementById('editor').noteText?.()))}`); });
   keys('Escape');
-  // Its edit link alone (#130): read and append with no account and no passphrase here, as a
-  // script or an AI agent would (an empty home, no PLIM_PASSPHRASE).
+  // Its edit link alone (#130): read and append with no account here, as a script or an AI agent
+  // would (an empty home).
   const editLink = await web.evaluate(async (t) => {
     [...document.querySelectorAll('#note-list li')].find((li) => li.querySelector('.title')?.textContent === t).querySelector('button').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 10, clientY: 10 }));
     document.getElementById('note-menu-share').click();
@@ -493,7 +477,7 @@ async function run(server, home) {
   // (Each run signs in, and the server takes 60 sign-in requests a minute from one address: this
   // flow's runs come quicker than anyone's, so on a 429 it waits for the next minute, once.)
   const plim = (args, input) => {
-    const once = () => spawnSync(CLI, args, { input, encoding: 'utf8', env: { ...env, PLIM_PASSPHRASE: PASSPHRASE } });
+    const once = () => spawnSync(CLI, args, { input, encoding: 'utf8', env });
     let r = once();
     if (r.status !== 0 && r.stderr.includes('429')) {
       execFileSync('sleep', [String(61 - (Math.floor(Date.now() / 1000) % 60))]);
@@ -536,9 +520,9 @@ async function run(server, home) {
   // are: "by NAME" in the list, its mark in the margin, its versions named in History.
   plim(['add', '--as', 'Claude'], 'As check\n\nfrom Claude\n');
   plim(['append', 'As check', '- and more', '--as', 'Claude']);
-  const asEnv = spawnSync(CLI, ['append', 'As check', '- from a script'], { encoding: 'utf8', env: { ...env, PLIM_PASSPHRASE: PASSPHRASE, PLIM_AS: 'Backup script' } });
+  const asEnv = spawnSync(CLI, ['append', 'As check', '- from a script'], { encoding: 'utf8', env: { ...env, PLIM_AS: 'Backup script' } });
   expect(asEnv.status === 0, 'PLIM_AS: written as it', asEnv.stderr);
-  const tooLong = spawnSync(CLI, ['append', 'As check', 'x', '--as', 'x'.repeat(41)], { encoding: 'utf8', env: { ...env, PLIM_PASSPHRASE: PASSPHRASE } });
+  const tooLong = spawnSync(CLI, ['append', 'As check', 'x', '--as', 'x'.repeat(41)], { encoding: 'utf8', env });
   expect(tooLong.status !== 0 && tooLong.stderr.includes('short name'), '--as: a long name refused', tooLong.stderr);
   {
     const h = plim(['history', 'As check']);
@@ -594,7 +578,7 @@ async function run(server, home) {
   const diff = plim(['history', 'History check', '1', '--diff']).out;
   expect(/^--- version 2\n\+\+\+ version 1\n/.test(diff) && /^\+second line$/m.test(diff) && /^\+oops, not this$/m.test(diff), 'history <n> --diff: what it changed', diff);
   // plim edit: a piece replaced (there once), the whole text from stdin, or in your editor.
-  const cli = (args, opts = {}) => spawnSync(CLI, args, { encoding: 'utf8', ...opts, env: { ...env, PLIM_PASSPHRASE: PASSPHRASE, ...opts.env } });
+  const cli = (args, opts = {}) => spawnSync(CLI, args, { encoding: 'utf8', ...opts, env: { ...env, ...opts.env } });
   r = plim(['edit', 'History check', '--replace', 'first line', 'first line, edited']);
   expect(/^Edited "History check": \+1 −1 · http/.test(r.err) && plim(['cat', 'History check']).out.includes('first line, edited\n'), 'edit --replace: the piece replaced, said', r.err);
   let bad = cli(['edit', 'History check', '--replace', 'not in it', 'x']);
@@ -608,7 +592,7 @@ async function run(server, home) {
   expect(r.status === 0 && /^Edited "History check"/m.test(r.stderr) && plim(['cat', 'History check']).out.includes('edited in an editor'), 'edit: in your editor ($PLIM_EDITOR), merged', r.stderr);
   r = cli(['edit', 'History check'], { env: { PLIM_EDITOR: 'true' } });
   expect(r.status === 0 && /No changes to "History check"/.test(r.stderr), 'edit: the editor closed without a change: nothing', r.stderr);
-  expect(/isn't a tag/.test(spawnSync(CLI, ['tag', 'Groceries', 'two words'], { encoding: 'utf8', env: { ...env, PLIM_PASSPHRASE: PASSPHRASE } }).stderr), 'tag: a bad tag refused', '');
+  expect(/isn't a tag/.test(spawnSync(CLI, ['tag', 'Groceries', 'two words'], { encoding: 'utf8', env }).stderr), 'tag: a bad tag refused', '');
   // Reading by tag: every note, each under its title and address.
   const cat = plim(['cat', '--tag', 'gym']).out;
   expect(/^==> Training 2026 · http\S+\/n\/[0-9a-f-]{36} <==$/m.test(cat) && !/^==> Leg day · http/m.test(cat) && cat.includes('135 lb × 12') && !cat.includes('Felt strong today'), 'cat --tag gym: not #gym/legs (#539)', cat);
@@ -654,19 +638,35 @@ async function run(server, home) {
     const created = plim(['ls', '--sort', 'created']);
     expect(first(edited).includes('Groceries') && !first(created).includes('Groceries')
       && created.out.split('\n').filter(Boolean).length === edited.out.split('\n').filter(Boolean).length, 'ls --sort created: the newest made first, the same notes', { edited, created });
-    const wrong = spawnSync(CLI, ['ls', '--sort', 'title'], { encoding: 'utf8', env: { ...env, PLIM_PASSPHRASE: PASSPHRASE } });
+    const wrong = spawnSync(CLI, ['ls', '--sort', 'title'], { encoding: 'utf8', env });
     expect(wrong.status === 2 && wrong.stderr.includes('[possible values: edited, created]'), 'ls --sort: only edited or created', wrong.stderr);
   }
   {
-    // Sharing with agents (#514): said, either way. (What an agent then sees is the connector's,
-    // tested in connector_tests.rs.) There's no MCP server on stdin/stdout: `plim mcp` alone
-    // refuses, saying what to do instead.
+    // Sharing with agents (#514): said, either way. Then `plim mcp` (0.22.0): a connection of its
+    // own, set up here, that the web app lists, and that sees that note and nothing else.
     let r = plim(['share', 'Training 2026', '--agents']);
     expect(/^Shared "Training 2026" with agents/.test(r.err), 'share --agents: said', r.err);
+    let mcp = spawnSync(CLI, ['mcp'], { input: '', encoding: 'utf8', env });
+    expect(mcp.status !== 0 && mcp.stderr.includes('plim mcp setup'), 'mcp: not set up yet, says how', mcp.stderr);
+    r = plim(['mcp', 'setup', '--name', 'Terminal agent']);
+    expect(r.out.trim() === 'claude mcp add plim -- plim mcp' && /Connected "Terminal agent".*\(1 now\)/.test(r.err) && /mcp\.key \(readable only by you\)/.test(r.err), 'mcp setup: connected, given the note, the line to add', r);
+    const rpc = (...msgs) => spawnSync(CLI, ['mcp'], { input: msgs.map((m, i) => JSON.stringify({ jsonrpc: '2.0', id: i + 1, ...m })).join('\n') + '\n', encoding: 'utf8', env });
+    mcp = rpc({ method: 'initialize', params: { protocolVersion: '2025-06-18' } }, { method: 'tools/call', params: { name: 'list_notes', arguments: {} } });
+    const answers = mcp.stdout.trim().split('\n').map((l) => JSON.parse(l));
+    const listed = answers[1]?.result?.content?.[0]?.text ?? '';
+    expect(answers.length === 2 && listed.includes('Training 2026') && !listed.includes('Groceries'), 'mcp: the note shared with agents, nothing else', mcp.stdout + mcp.stderr);
+    // In the web app, Settings → Connections lists it (its record in the index, as the app keeps one).
+    await web.bringToFront();
+    await openSettings(web, 'connections');
+    await pageUntil(web, () => [...document.querySelectorAll('#connections-list .connection-row')].some((r) => r.textContent.includes('Terminal agent') && r.textContent.includes('This computer')), undefined, 20000)
+      .catch(async () => { throw new Error(`the web app should list plim mcp's connection: ${await web.evaluate(() => document.getElementById('connections-list').textContent)}`); });
+    await closeSettings(web);
+    r = plim(['mcp', 'remove']);
+    expect(/^Disconnected/.test(r.err), 'mcp remove: disconnected', r.err);
+    mcp = spawnSync(CLI, ['mcp'], { input: '', encoding: 'utf8', env });
+    expect(mcp.status !== 0 && mcp.stderr.includes('plim mcp setup'), 'mcp: gone after remove', mcp.stderr);
     r = plim(['unshare', 'Training 2026', '--agents']);
     expect(/^"Training 2026" isn't shared with agents any more/.test(r.err), 'unshare --agents: said', r.err);
-    const mcp = spawnSync(CLI, ['mcp'], { input: '', encoding: 'utf8', env: { ...env, PLIM_PASSPHRASE: PASSPHRASE } });
-    expect(mcp.status !== 0 && mcp.stdout === '' && mcp.stderr.includes('only runs the connector now'), 'mcp: no stdio server, saying what to do instead', mcp.stderr);
   }
   await shell('plim ls --tag gym');
   await shell('plim tags');

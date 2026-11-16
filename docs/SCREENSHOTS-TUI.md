@@ -25,7 +25,7 @@ The script runs `plim` in a hidden tmux session against its own throwaway server
 
 ## Create a vault: `plim init`
 
-`init` shows the 12 words once, clears them, asks for three of them back, then sets this machine’s device passphrase, and offers to remember it on this machine (in its keychain, or the kernel's keyring on a server).
+`init` shows the 12 words once, clears them, asks for three of them back, then keeps this machine’s key in its keychain, or (as here, with none) a file only you can read: nothing more is asked.
 
 **The 12 words**
 
@@ -35,9 +35,9 @@ The script runs `plim` in a hidden tmux session against its own throwaway server
 
 <img src="screenshots/tui/01-init-2-confirm.png" width="760" alt="Three of them back (the screen was cleared)">
 
-**The device passphrase, and the vault is created**
+**The vault is created, and where the key is kept**
 
-<img src="screenshots/tui/01-init-3-done.png" width="760" alt="The device passphrase, and the vault is created">
+<img src="screenshots/tui/01-init-3-done.png" width="760" alt="The vault is created, and where the key is kept">
 
 ## Scripting
 
@@ -105,7 +105,7 @@ The server returned less than this machine had already seen (here, an update was
 
 ## Sign in on another machine: `plim login`
 
-The 12 words (hidden as you type), then a device passphrase for this machine, remembered here if you say so: then commands ask for nothing.
+The 12 words (hidden as you type); the key is kept as `init` keeps it, and then commands ask for nothing.
 
 **Signed in**
 
@@ -117,7 +117,7 @@ Notes shared in the web app are marked **Shared** in the list (and `(shared)` in
 
 <img src="screenshots/tui/08-shared-1-open.png" width="760" alt="A shared note open in the terminal, with a line typed there">
 
-With only its link, no account or passphrase: `plim append <link> "…"` and `plim cat <link>` (here with an empty home folder). A script or an AI tool can be given one note this way, not the whole vault.
+With only its link, no account: `plim append <link> "…"` and `plim cat <link>` (here with an empty home folder). A script or an AI tool can be given one note this way, not the whole vault.
 
 <img src="screenshots/tui/08-shared-2-link.png" width="760" alt="plim cat and plim append with only a note's link">
 

@@ -47,6 +47,9 @@ pub struct ShareRef {
     pub holder: Option<HolderRef>,
     /// A note of yours: the people with a link of their own (#369), as the web app keeps them.
     pub holders: Vec<Holder>,
+    /// What else the web app keeps on it (`via`: the connection it was shared for), written back
+    /// as it was.
+    pub extra: std::collections::HashMap<String, Any>,
 }
 
 /// A link of your own to someone's note: its holder's id and secret (base64).
@@ -56,7 +59,8 @@ pub struct HolderRef {
     pub secret: String,
 }
 
-/// Someone with a link of their own to a note of yours: `{ id, secret, role, label, created }`.
+/// Someone with a link of their own to a note of yours: `{ id, secret, role, label, created }`,
+/// or a connection's holder (`connection`: its id).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Holder {
     pub id: String,
@@ -64,6 +68,13 @@ pub struct Holder {
     pub role: String,
     pub label: String,
     pub created: f64,
+    /// What else the web app keeps on it (`connection`), written back as it was.
+    pub extra: std::collections::HashMap<String, Any>,
+}
+
+/// A map's fields other than `known`.
+fn others(m: &std::collections::HashMap<String, Any>, known: &[&str]) -> std::collections::HashMap<String, Any> {
+    m.iter().filter(|(k, _)| !known.contains(&k.as_str())).map(|(k, v)| (k.clone(), v.clone())).collect()
 }
 
 fn any_str(m: &std::collections::HashMap<String, Any>, k: &str) -> Option<String> {
@@ -90,12 +101,20 @@ impl ShareRef {
                         Some(Any::Number(n)) => n.as_f64().unwrap_or(0.0),
                         _ => 0.0,
                     };
-                    Some(Holder { id: any_str(h, "id")?, secret: any_str(h, "secret")?, role: any_str(h, "role").unwrap_or_else(|| "read".into()), label: any_str(h, "label").unwrap_or_default(), created })
+                    Some(Holder {
+                        id: any_str(h, "id")?,
+                        secret: any_str(h, "secret")?,
+                        role: any_str(h, "role").unwrap_or_else(|| "read".into()),
+                        label: any_str(h, "label").unwrap_or_default(),
+                        created,
+                        extra: others(h, &["id", "secret", "role", "label", "created"]),
+                    })
                 })
                 .collect(),
             _ => Vec::new(),
         };
-        Some(ShareRef { id: s("id")?, seed: s("seed"), enc_key: s("encKey"), pubkey: s("pubkey"), role: s("role"), holder, holders })
+        let extra = others(m, &["id", "seed", "encKey", "pubkey", "role", "holder", "holders"]);
+        Some(ShareRef { id: s("id")?, seed: s("seed"), enc_key: s("encKey"), pubkey: s("pubkey"), role: s("role"), holder, holders, extra })
     }
 
     /// Its keys (an edit link's, or a view link's: then it can't be written).
@@ -371,7 +390,8 @@ pub fn create(index: &Doc, title: &str) -> String {
 impl ShareRef {
     /// As the note list keeps it: a plain object, as the web app writes it.
     fn to_any(&self) -> Any {
-        let mut fields = std::collections::HashMap::from([("id".to_string(), Any::from(self.id.as_str()))]);
+        let mut fields = self.extra.clone();
+        fields.insert("id".to_string(), Any::from(self.id.as_str()));
         for (k, v) in [("seed", &self.seed), ("encKey", &self.enc_key), ("pubkey", &self.pubkey), ("role", &self.role)] {
             if let Some(v) = v {
                 fields.insert(k.to_string(), Any::from(v.as_str()));
@@ -385,13 +405,15 @@ impl ShareRef {
                 .holders
                 .iter()
                 .map(|h| {
-                    Any::from(std::collections::HashMap::from([
+                    let mut m = h.extra.clone();
+                    m.extend([
                         ("id".to_string(), Any::from(h.id.as_str())),
                         ("secret".to_string(), Any::from(h.secret.as_str())),
                         ("role".to_string(), Any::from(h.role.as_str())),
                         ("label".to_string(), Any::from(h.label.as_str())),
                         ("created".to_string(), Any::Number(Number::Float(h.created))),
-                    ]))
+                    ]);
+                    Any::from(m)
                 })
                 .collect();
             fields.insert("holders".into(), Any::Array(items.into()));

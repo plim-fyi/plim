@@ -10,6 +10,7 @@ mod connector;
 mod keychain;
 mod mcp;
 mod link;
+mod local_mcp;
 mod notes;
 mod prompt;
 mod session;
@@ -31,7 +32,7 @@ mod writer;
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 
-use crate::commands::account::{delete_account, init, login, logout, remember, uninstall};
+use crate::commands::account::{delete_account, init, login, logout, uninstall};
 use crate::commands::edit::{How, edit};
 use crate::commands::history::{history, restore};
 use crate::commands::notes::{Sort, add, append, cat, cat_tagged, export, ls, rm, tag, tags};
@@ -62,19 +63,19 @@ enum Command {
     Init,
     /// Sign this device in to an existing vault with its recovery phrase
     Login,
-    /// Remember the device passphrase on this machine (its keychain), so plim stops asking for it
+    /// (Gone in 0.22.0: there's no device passphrase to remember)
+    #[command(hide = true)]
     Remember {
-        /// Forget it instead: plim asks again
         #[arg(long)]
         off: bool,
     },
-    /// Remove this device's saved key
+    /// Sign this device out: its key, kept in the keychain or a file, is removed
     Logout {
         /// Even if some edits have not been uploaded yet
         #[arg(long)]
         force: bool,
     },
-    /// Remove plim from this machine: the binary, its config and data, the remembered passphrase
+    /// Remove plim from this machine: the binary, its config and data, its keys
     Uninstall {
         /// Don't ask first
         #[arg(long)]
@@ -218,10 +219,13 @@ enum Command {
     Rm { query: String },
     /// Delete your account and everything of it from the server, for good
     DeleteAccount,
-    /// Serve as the connector for a Plim server (#369): a remote MCP server that Claude (or another
-    /// MCP client) connects to over the web, and the owner connects in Plim, under Settings →
-    /// Connections. There's no MCP server on stdin/stdout: in a terminal, use these commands
+    /// An MCP server on stdin/stdout for an AI on this machine (`claude mcp add plim -- plim mcp`),
+    /// once `plim mcp setup` has connected it: it sees the notes you share with agents, and
+    /// nothing else, as any connection in Settings → Connections. With --http, the connector
+    /// instead: a remote MCP server for a Plim server (#369)
     Mcp {
+        #[command(subcommand)]
+        action: Option<McpAction>,
         /// The address to listen on. No account here: --server names the Plim server, --public-url
         /// this one's address
         #[arg(long, value_name = "ADDR")]
@@ -234,6 +238,19 @@ enum Command {
         #[arg(long, value_name = "PATH", requires = "http")]
         secret_file: Option<std::path::PathBuf>,
     },
+}
+
+#[derive(Subcommand)]
+enum McpAction {
+    /// Connect `plim mcp` to your notes: a connection of its own, in Settings → Connections, that
+    /// sees the notes you share with agents. Only its secret is kept here, not your key
+    Setup {
+        /// Its name in Settings → Connections
+        #[arg(long, default_value = "plim mcp")]
+        name: String,
+    },
+    /// Disconnect it (as Disconnect in Settings → Connections), and forget its secret
+    Remove,
 }
 
 fn main() -> Result<()> {
@@ -252,7 +269,10 @@ async fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Some(Command::Init) => init(server).await,
         Some(Command::Login) => login(server).await,
-        Some(Command::Remember { off }) => remember(off).await,
+        Some(Command::Remember { .. }) => bail!(
+            "plim remember is gone: since 0.22.0 there's no device passphrase. This device's key is kept in the keychain, \
+             or a file only you can read; `plim logout` and `plim login` move a device signed in before then"
+        ),
         Some(Command::Logout { force }) => logout(force),
         Some(Command::Uninstall { yes }) => uninstall(yes, std::env::current_exe().ok()),
         Some(Command::Ls { urls, tag, sort }) => ls(server, urls, tag.as_deref(), sort).await,
@@ -287,12 +307,11 @@ async fn run(cli: Cli) -> Result<()> {
         }
         Some(Command::Rm { query }) => rm(server, &query).await,
         Some(Command::DeleteAccount) => delete_account(server).await,
-        Some(Command::Mcp { http: None, .. }) => bail!(
-            "plim mcp only runs the connector now (`plim mcp --http ADDR`): there's no MCP server on stdin/stdout. \
-             Connect Claude to your Plim server's connector (in Plim, Settings → Connections), and remove `plim mcp` \
-             from this client's settings. In a terminal, use the plim commands."
-        ),
-        Some(Command::Mcp { http: Some(listen), public_url, secret_file }) => {
+        Some(Command::Mcp { action: Some(McpAction::Setup { name }), http: None, .. }) => local_mcp::setup(server, &name).await,
+        Some(Command::Mcp { action: Some(McpAction::Remove), http: None, .. }) => local_mcp::remove(server).await,
+        Some(Command::Mcp { action: None, http: None, .. }) => local_mcp::serve(server).await,
+        Some(Command::Mcp { action: Some(_), http: Some(_), .. }) => bail!("--http runs the connector: no setup or remove with it"),
+        Some(Command::Mcp { action: None, http: Some(listen), public_url, secret_file }) => {
             // (The settings, PLIM_ or TIRO_: clap's `env` takes only one name.)
             let public_url = public_url
                 .or_else(|| config::env("CONNECTOR_URL"))

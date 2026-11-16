@@ -55,7 +55,7 @@ mod tools;
 #[cfg(test)]
 pub(crate) use oauth::redirect_host;
 use oauth::{COMPLETE_HTML, auth_metadata, authorize, complete, complete_page, register, resource_metadata, token};
-use tools::Conn;
+pub(crate) use tools::Conn;
 
 /// How long a token opens the connection: a day for the access token (the client refreshes it
 /// without the user), 90 days for the refresh token: each refresh gives a new one, so a client in

@@ -88,7 +88,7 @@ impl Entry {
 
 impl Conn {
     /// `session`: this MCP session's writing session (#505), if the client keeps one.
-    pub(super) fn new(plim: &str, id: &str, secret: [u8; 32], session: Option<WriterSession>) -> Self {
+    pub(crate) fn new(plim: &str, id: &str, secret: [u8; 32], session: Option<WriterSession>) -> Self {
         Conn { plim: plim.into(), id: id.into(), keys: connection_keys(&secret), secret, list: None, session }
     }
 

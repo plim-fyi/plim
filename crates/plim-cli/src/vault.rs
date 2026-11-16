@@ -7,14 +7,13 @@ use anyhow::{Context, Result, bail};
 
 use crate::api::{Api, ApiError};
 use crate::config;
-use crate::prompt::unlock_device;
 use crate::session::{Session, identity_from_seed};
 use crate::sync::{self, DocSync, NoEvents};
 use crate::{link, notes, sharing, tags};
 
 pub(crate) async fn open_session(server: Option<&str>) -> Result<Arc<Session>> {
     let device = config::require_device()?;
-    let seed = unlock_device(&device).await?;
+    let seed = device.seed()?;
     let api = Api::new(&config::server_url(server, Some(&device)));
     let sess = Session::open(api, identity_from_seed(&seed)).await.map_err(|e| match e.downcast_ref::<ApiError>() {
         Some(ApiError::Http(401, _)) => {
