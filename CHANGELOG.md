@@ -5,6 +5,11 @@ change merges; from 0.21.0 a release also numbers them, as the server's containe
 `ghcr.io/plim-fyi/plim:<version>`, and says what they gained since the last. Each release's binary:
 [the releases](https://github.com/plim-fyi/plim/releases) (from 0.20.0).
 
+## 0.22.1
+
+- **The connector (`plim mcp --http`) logs each request** on stderr, a line each: the method, the route, the status, the time it took, the caller's address, and, signed in, the connection (the first 8 of its id) and its MCP methods (`tools/call:read_note`). Never a token, a note's id or anything of a note; what a client sends can't break a line. Not `/healthz`. ([Known limitations](README.md#known-limitations))
+- **The connector never replaces a key it can't read:** it makes `--secret-file` only when the file isn't there; any other failure to read it (no permission) stops it. Before, it made a new key in its place, which ends every connection.
+
 ## 0.22.0
 
 - **No device passphrase:** `init` and `login` keep this device's key in the machine's keychain (the Secret Service on Linux, the Keychain on a Mac), or, where there's none (a headless server, a container), in a file only you can read, `~/.local/share/plim/<account>.key` (`0600`; refused if anyone else can read it). Then nothing asks for anything. `PLIM_CREDENTIALS_STORE=keychain|file` picks one. `plim remember`, `PLIM_PASSPHRASE` and the kernel keyring (forgotten on a reboot or after 3 days) are gone. **A device signed in before 0.22.0 signs in again once:** `plim logout`, then `plim login` with your 12 words.

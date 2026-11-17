@@ -89,9 +89,16 @@ pub async fn serve(opts: Opts) -> Result<()> {
     Ok(())
 }
 
+/**
+ * The key that seals the tokens, made only when there is no file yet. Any other failure to read
+ * it (no permission, a directory) stops the connector: making a new key in its place would end
+ * every connection it has (#js52).
+ */
 fn load_key(path: &std::path::Path) -> Result<[u8; 32]> {
-    if let Ok(bytes) = std::fs::read(path) {
-        return bytes.try_into().map_err(|_| anyhow!("{} isn't 32 bytes", path.display()));
+    match std::fs::read(path) {
+        Ok(bytes) => return bytes.try_into().map_err(|_| anyhow!("{} isn't 32 bytes", path.display())),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(anyhow!("can't read {}: {e}", path.display())),
     }
     let key = random_bytes::<32>();
     if let Some(dir) = path.parent() {
@@ -205,7 +212,80 @@ pub fn router(c: Arc<Connector>) -> Router {
         .route("/token", post(token))
         .route("/mcp", post(mcp_post).get(|| async { StatusCode::METHOD_NOT_ALLOWED }).delete(|| async { StatusCode::NO_CONTENT }))
         .layer(axum::middleware::map_response(security_headers))
+        .layer(axum::middleware::from_fn(log_request))
         .with_state(c)
+}
+
+/**
+ * What a handler adds to its request's log line: the connection it served (the first 8 of its
+ * id, as the tools' errors name it), and what an MCP client asked.
+ */
+#[derive(Clone, Default)]
+pub(super) struct LogNote {
+    conn: Option<String>,
+    rpc: Option<String>,
+}
+
+impl LogNote {
+    pub(super) fn conn(cid: &str) -> Self {
+        LogNote { conn: Some(cid.get(..8).unwrap_or(cid).to_string()), rpc: None }
+    }
+}
+
+/**
+ * One line on stderr per request (#js52), so the host can tell scans, failed tokens and each
+ * connection's use apart: the method, the route as matched (never the raw path), the status, the
+ * time taken, the caller's address, and, signed in, the connection and its JSON-RPC methods.
+ * Never a token, a note's id or anything of a note. Not /healthz.
+ */
+async fn log_request(peer: oauth::Peer, req: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    let method = req.method().clone();
+    let route = req.extensions().get::<axum::extract::MatchedPath>().map(|p| p.as_str().to_string());
+    let t = Instant::now();
+    let res = next.run(req).await;
+    if route.as_deref() != Some("/healthz") {
+        let note = res.extensions().get::<LogNote>().cloned().unwrap_or_default();
+        eprintln!("{}", log_line(method.as_str(), route.as_deref(), res.status().as_u16(), t.elapsed().as_millis(), &peer.0, &note));
+    }
+    res
+}
+
+fn log_line(method: &str, route: Option<&str>, status: u16, ms: u128, from: &str, note: &LogNote) -> String {
+    let mut line = format!("plim mcp: {} {} {status} {ms}ms from={}", clean(method), route.unwrap_or("(no route)"), if from.is_empty() { "-" } else { from });
+    if let Some(conn) = &note.conn {
+        line += &format!(" conn={}", clean(conn));
+    }
+    if let Some(rpc) = &note.rpc {
+        line += &format!(" rpc={rpc}");
+    }
+    line
+}
+
+/// A client's word made safe for a log line: no spaces or line breaks, nothing to forge a line with, short.
+fn clean(s: &str) -> String {
+    let s: String = s.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '_' | '-' | '.')).take(40).collect();
+    if s.is_empty() { "?".to_string() } else { s }
+}
+
+/// The JSON-RPC methods of a message or batch, a tool call with its tool's name: `tools/call:read_note`.
+fn rpc_summary(msg: &Value) -> String {
+    let one = |m: &Value| {
+        let method = clean(m.get("method").and_then(Value::as_str).unwrap_or("reply"));
+        match m.pointer("/params/name").and_then(Value::as_str) {
+            Some(tool) if method == "tools/call" => format!("{method}:{}", clean(tool)),
+            _ => method,
+        }
+    };
+    match msg {
+        Value::Array(msgs) => {
+            let mut parts: Vec<String> = msgs.iter().take(5).map(one).collect();
+            if msgs.len() > 5 {
+                parts.push(format!("+{}", msgs.len() - 5));
+            }
+            parts.join(",")
+        }
+        m => one(m),
+    }
 }
 
 /**
@@ -258,10 +338,16 @@ async fn mcp_post(State(c): St, headers: HeaderMap, body: String) -> Response {
         )
             .into_response();
     };
+    let mut note = LogNote::conn(&cid);
     let msg: Value = match serde_json::from_str(&body) {
         Ok(v) => v,
-        Err(e) => return axum::Json(mcp::error(Value::Null, -32700, &format!("not JSON: {e}"))).into_response(),
+        Err(e) => {
+            let mut res = axum::Json(mcp::error(Value::Null, -32700, &format!("not JSON: {e}"))).into_response();
+            res.extensions_mut().insert(note);
+            return res;
+        }
     };
+    note.rpc = Some(rpc_summary(&msg));
     // Its MCP session (#505): handed out at initialize (Mcp-Session-Id), sent back with each
     // request after, so the versions its changes leave name one session ("amber fox"). Nothing is
     // kept here: the name comes from the id. (Not for access: the token is.)
@@ -294,6 +380,7 @@ async fn mcp_post(State(c): St, headers: HeaderMap, body: String) -> Response {
     {
         res.headers_mut().insert(MCP_SESSION, v);
     }
+    res.extensions_mut().insert(note);
     res
 }
 
@@ -303,4 +390,50 @@ const MCP_SESSION: &str = "mcp-session-id";
 /// An MCP session id as the spec allows it (visible ASCII), and not absurdly long.
 fn valid_session_id(s: &str) -> bool {
     !s.is_empty() && s.len() <= 128 && s.bytes().all(|b| b.is_ascii_graphic())
+}
+
+#[cfg(test)]
+mod log_tests {
+    use super::*;
+
+    #[test]
+    fn a_line_names_the_route_and_connection_never_more() {
+        let note = LogNote { conn: Some("c0ffeec0".into()), rpc: Some("tools/call:read_note".into()) };
+        assert_eq!(log_line("POST", Some("/mcp"), 200, 12, "203.0.113.7", &note), "plim mcp: POST /mcp 200 12ms from=203.0.113.7 conn=c0ffeec0 rpc=tools/call:read_note");
+        assert_eq!(log_line("GET", None, 404, 0, "", &LogNote::default()), "plim mcp: GET (no route) 404 0ms from=-");
+        assert_eq!(LogNote::conn("c0ffeec0ffeec0ffee").conn.as_deref(), Some("c0ffeec0"));
+    }
+
+    #[test]
+    fn what_a_client_sends_cant_forge_a_line() {
+        let msg = json!({ "method": "tools/call\nplim mcp: GET /token 200", "params": { "name": "read note; rm -rf" } });
+        let s = rpc_summary(&msg);
+        assert!(!s.contains('\n') && !s.contains(' '), "{s}");
+        assert_eq!(rpc_summary(&json!({ "method": "tools/call", "params": { "name": "read_note", "arguments": { "note": "secret title" } } })), "tools/call:read_note");
+        assert_eq!(rpc_summary(&json!({ "method": "" })), "?");
+        assert_eq!(clean(&"a".repeat(500)).len(), 40);
+    }
+
+    #[test]
+    fn a_key_it_cant_read_stops_it_and_is_never_replaced() {
+        let dir = std::env::temp_dir().join(format!("plim-key-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // missing: made, then read back the same
+        let path = dir.join("connector.key");
+        let made = load_key(&path).unwrap();
+        assert_eq!(load_key(&path).unwrap(), made);
+        // there but unreadable (a directory in its place: works as root too): an error, nothing written
+        let blocked = dir.join("blocked");
+        std::fs::create_dir_all(blocked.join("x")).unwrap();
+        assert!(load_key(&blocked).is_err());
+        assert!(blocked.join("x").is_dir());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_batch_is_summed_up() {
+        let batch = Value::Array((0..7).map(|_| json!({ "method": "ping" })).collect());
+        assert_eq!(rpc_summary(&batch), "ping,ping,ping,ping,ping,+2");
+        assert_eq!(rpc_summary(&json!({ "result": {} })), "reply");
+    }
 }

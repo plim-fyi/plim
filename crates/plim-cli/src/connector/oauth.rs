@@ -182,7 +182,7 @@ const MAX_PENDING_EACH: usize = 10;
  * Whom a request comes from, for MAX_PENDING_EACH: the address Cloudflare's tunnel says
  * (`CF-Connecting-IP`), believed only from this machine, where cloudflared runs; else the peer's.
  */
-pub(super) struct Peer(String);
+pub(super) struct Peer(pub(super) String);
 
 impl<S: Send + Sync> axum::extract::FromRequestParts<S> for Peer {
     type Rejection = std::convert::Infallible;
@@ -323,7 +323,7 @@ pub(super) async fn token(State(c): St, Form(req): Form<TokenReq>) -> Response {
         },
         _ => return oauth_error(StatusCode::BAD_REQUEST, "unsupported_grant_type", "authorization_code or refresh_token"),
     };
-    (
+    let mut res = (
         [(header::CACHE_CONTROL, "no-store")],
         axum::Json(json!({
             "access_token": c.token("access", &cid, &secret, ACCESS_SECS),
@@ -333,6 +333,8 @@ pub(super) async fn token(State(c): St, Form(req): Form<TokenReq>) -> Response {
             "scope": "notes",
         })),
     )
-        .into_response()
+        .into_response();
+    res.extensions_mut().insert(super::LogNote::conn(&cid));
+    res
 }
 
