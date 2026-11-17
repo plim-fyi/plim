@@ -237,6 +237,11 @@ enum Command {
         /// made if missing; default: <data dir>/connector.key)
         #[arg(long, value_name = "PATH", requires = "http")]
         secret_file: Option<std::path::PathBuf>,
+        /// With --http: where its proxy's requests come from besides this machine, addresses or
+        /// CIDR ranges, comma-separated, so their CF-Connecting-IP is believed
+        /// (PLIM_CONNECTOR_TRUSTED_PROXIES; e.g. the host's address under rootless podman)
+        #[arg(long, value_name = "LIST", requires = "http")]
+        trusted_proxies: Option<String>,
     },
 }
 
@@ -311,7 +316,7 @@ async fn run(cli: Cli) -> Result<()> {
         Some(Command::Mcp { action: Some(McpAction::Remove), http: None, .. }) => local_mcp::remove(server).await,
         Some(Command::Mcp { action: None, http: None, .. }) => local_mcp::serve(server).await,
         Some(Command::Mcp { action: Some(_), http: Some(_), .. }) => bail!("--http runs the connector: no setup or remove with it"),
-        Some(Command::Mcp { action: None, http: Some(listen), public_url, secret_file }) => {
+        Some(Command::Mcp { action: None, http: Some(listen), public_url, secret_file, trusted_proxies }) => {
             // (The settings, PLIM_ or TIRO_: clap's `env` takes only one name.)
             let public_url = public_url
                 .or_else(|| config::env("CONNECTOR_URL"))
@@ -323,8 +328,9 @@ async fn run(cli: Cli) -> Result<()> {
                 Some(p) => p,
                 None => config::paths()?.data.join("connector.key"),
             };
+            let trusted_proxies = connector::IpNet::parse_list(&trusted_proxies.or_else(|| config::env("CONNECTOR_TRUSTED_PROXIES")).unwrap_or_default())?;
             let server = config::server_url(server, config::load_device()?.as_ref());
-            connector::serve(connector::Opts { listen, public_url, server, secret_file }).await
+            connector::serve(connector::Opts { listen, public_url, server, secret_file, trusted_proxies }).await
         }
         None => tui::run(open_session(server).await?).await,
     }

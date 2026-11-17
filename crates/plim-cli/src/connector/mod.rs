@@ -52,6 +52,8 @@ macro_rules! page_css {
 mod oauth;
 mod tools;
 
+pub use oauth::IpNet;
+
 #[cfg(test)]
 pub(crate) use oauth::redirect_host;
 use oauth::{COMPLETE_HTML, auth_metadata, authorize, complete, complete_page, register, resource_metadata, token};
@@ -77,14 +79,19 @@ pub struct Opts {
     pub server: String,
     /// 32 bytes sealing tokens and client ids; made if missing.
     pub secret_file: std::path::PathBuf,
+    /// Where cloudflared's requests come from besides loopback, so their `CF-Connecting-IP` is
+    /// believed (#n8a5).
+    pub trusted_proxies: Vec<oauth::IpNet>,
 }
 
 /// Run until stopped.
 pub async fn serve(opts: Opts) -> Result<()> {
     let key = load_key(&opts.secret_file)?;
-    let c = Arc::new(Connector::new(&opts.public_url, &opts.server, key));
+    let c = Arc::new(Connector::new(&opts.public_url, &opts.server, key).with_trusted(opts.trusted_proxies));
     let listener = tokio::net::TcpListener::bind(opts.listen).await.with_context(|| format!("can't listen on {}", opts.listen))?;
     eprintln!("plim mcp: connector at {} for {}, listening on {} ({})", c.public, c.plim, opts.listen, crate::VERSION);
+    let trusted: Vec<String> = c.trusted.iter().map(ToString::to_string).collect();
+    eprintln!("plim mcp: CF-Connecting-IP believed from loopback{}", if trusted.is_empty() { String::new() } else { format!(" and {}", trusted.join(", ")) });
     axum::serve(listener, router(c).into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
 }
@@ -122,6 +129,8 @@ pub struct Connector {
     pending: Mutex<HashMap<String, Pending>>,
     /// Consent given, code not yet redeemed.
     codes: Mutex<HashMap<String, Grant>>,
+    /// Peers besides loopback whose `CF-Connecting-IP` is believed (oauth::Peer).
+    trusted: Vec<oauth::IpNet>,
 }
 
 struct Pending {
@@ -154,7 +163,13 @@ impl Connector {
             key,
             pending: Mutex::new(HashMap::new()),
             codes: Mutex::new(HashMap::new()),
+            trusted: Vec::new(),
         }
+    }
+
+    pub fn with_trusted(mut self, trusted: Vec<oauth::IpNet>) -> Self {
+        self.trusted = trusted;
+        self
     }
 
     /// Something sealed to this process: base64url(nonce ‖ ciphertext), bound to what it is.
@@ -212,7 +227,8 @@ pub fn router(c: Arc<Connector>) -> Router {
         .route("/token", post(token))
         .route("/mcp", post(mcp_post).get(|| async { StatusCode::METHOD_NOT_ALLOWED }).delete(|| async { StatusCode::NO_CONTENT }))
         .layer(axum::middleware::map_response(security_headers))
-        .layer(axum::middleware::from_fn(log_request))
+        // (with the connector: the caller's address is the trusted proxies' call, oauth::Peer)
+        .layer(axum::middleware::from_fn_with_state(c.clone(), log_request))
         .with_state(c)
 }
 

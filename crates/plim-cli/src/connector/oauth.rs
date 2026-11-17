@@ -1,6 +1,6 @@
 //! OAuth, as MCP clients expect it: discovery, registration, consent (in the Plim app), tokens.
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -179,22 +179,114 @@ const MAX_PENDING: usize = 1000;
 const MAX_PENDING_EACH: usize = 10;
 
 /**
- * Whom a request comes from, for MAX_PENDING_EACH: the address Cloudflare's tunnel says
- * (`CF-Connecting-IP`), believed only from this machine, where cloudflared runs; else the peer's.
+ * Whom a request comes from, for MAX_PENDING_EACH and the request log: the address Cloudflare's
+ * tunnel says (`CF-Connecting-IP`), believed only from where cloudflared runs: this machine, or an
+ * address in `--trusted-proxies` (#n8a5: under rootless podman cloudflared arrives from the
+ * host's address, not loopback, and every visitor was one); else the peer's.
  */
 pub(super) struct Peer(pub(super) String);
 
-impl<S: Send + Sync> axum::extract::FromRequestParts<S> for Peer {
+impl axum::extract::FromRequestParts<std::sync::Arc<super::Connector>> for Peer {
     type Rejection = std::convert::Infallible;
 
-    async fn from_request_parts(parts: &mut axum::http::request::Parts, _: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut axum::http::request::Parts, c: &std::sync::Arc<super::Connector>) -> Result<Self, Self::Rejection> {
         let peer = parts.extensions.get::<axum::extract::ConnectInfo<SocketAddr>>().map(|c| c.0.ip());
-        let forwarded = parts.headers.get("cf-connecting-ip").and_then(|v| v.to_str().ok()).and_then(|v| v.trim().parse::<std::net::IpAddr>().ok());
-        Ok(Peer(match (peer, forwarded) {
-            (Some(p), Some(f)) if p.is_loopback() => f.to_string(),
-            (Some(p), _) => p.to_string(),
-            (None, _) => String::new(),
-        }))
+        let forwarded = parts.headers.get("cf-connecting-ip").and_then(|v| v.to_str().ok()).and_then(|v| v.trim().parse::<IpAddr>().ok());
+        Ok(Peer(caller(peer, forwarded, &c.trusted)))
+    }
+}
+
+/// The caller's address: the forwarded one from a trusted peer, else the peer's own.
+pub(super) fn caller(peer: Option<IpAddr>, forwarded: Option<IpAddr>, trusted: &[IpNet]) -> String {
+    match (peer.map(|p| p.to_canonical()), forwarded) {
+        (Some(p), Some(f)) if p.is_loopback() || trusted.iter().any(|n| n.contains(p)) => f.to_canonical().to_string(),
+        (Some(p), _) => p.to_string(),
+        (None, _) => String::new(),
+    }
+}
+
+/// An address range in CIDR notation (`10.89.0.0/16`, `::1/128`); a bare address is one host.
+/// (The server's, server/src/proxy.rs: the CLI doesn't depend on the server crate.)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct IpNet {
+    addr: IpAddr,
+    prefix: u8,
+}
+
+impl IpNet {
+    pub fn parse(s: &str) -> Option<Self> {
+        let (addr, prefix) = match s.split_once('/') {
+            Some((a, p)) => (a.trim().parse::<IpAddr>().ok()?, Some(p.trim().parse::<u8>().ok()?)),
+            None => (s.trim().parse::<IpAddr>().ok()?, None),
+        };
+        let addr = addr.to_canonical();
+        let max = if addr.is_ipv4() { 32 } else { 128 };
+        let prefix = prefix.unwrap_or(max);
+        (prefix <= max).then_some(IpNet { addr, prefix })
+    }
+
+    /// A comma-separated list (`PLIM_CONNECTOR_TRUSTED_PROXIES`); an entry that isn't one is an
+    /// error, not skipped: a typo would quietly make every visitor one again.
+    pub fn parse_list(s: &str) -> Result<Vec<Self>> {
+        s.split(',')
+            .map(str::trim)
+            .filter(|e| !e.is_empty())
+            .map(|e| IpNet::parse(e).ok_or_else(|| anyhow::anyhow!("trusted proxies: {e:?} isn't an IP address or CIDR range")))
+            .collect()
+    }
+
+    pub fn contains(&self, ip: IpAddr) -> bool {
+        match (self.addr, ip.to_canonical()) {
+            (IpAddr::V4(net), IpAddr::V4(ip)) => {
+                let mask = u32::MAX.checked_shl(32 - self.prefix as u32).unwrap_or(0);
+                u32::from(net) & mask == u32::from(ip) & mask
+            }
+            (IpAddr::V6(net), IpAddr::V6(ip)) => {
+                let mask = u128::MAX.checked_shl(128 - self.prefix as u32).unwrap_or(0);
+                u128::from(net) & mask == u128::from(ip) & mask
+            }
+            _ => false,
+        }
+    }
+}
+
+impl std::fmt::Display for IpNet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}", self.addr, self.prefix)
+    }
+}
+
+#[cfg(test)]
+mod peer_tests {
+    use super::*;
+
+    fn ip(s: &str) -> Option<IpAddr> {
+        Some(s.parse().unwrap())
+    }
+
+    #[test]
+    fn the_forwarded_address_only_from_a_trusted_peer() {
+        let trusted = IpNet::parse_list("192.0.2.10, 10.89.0.0/16").unwrap();
+        // loopback, as before, and the listed ones
+        assert_eq!(caller(ip("127.0.0.1"), ip("203.0.113.7"), &[]), "203.0.113.7");
+        assert_eq!(caller(ip("192.0.2.10"), ip("203.0.113.7"), &trusted), "203.0.113.7");
+        assert_eq!(caller(ip("10.89.4.2"), ip("2001:db8::1"), &trusted), "2001:db8::1");
+        // an IPv4 peer as an IPv6-mapped address (a dual-stack listener) is the same peer
+        assert_eq!(caller(ip("::ffff:192.0.2.10"), ip("203.0.113.7"), &trusted), "203.0.113.7");
+        // anyone else's header is ignored: the peer is who it is
+        assert_eq!(caller(ip("192.0.2.10"), ip("203.0.113.7"), &[]), "192.0.2.10");
+        assert_eq!(caller(ip("198.51.100.9"), ip("203.0.113.7"), &trusted), "198.51.100.9");
+        // no header: the peer
+        assert_eq!(caller(ip("192.0.2.10"), None, &trusted), "192.0.2.10");
+        assert_eq!(caller(None, ip("203.0.113.7"), &trusted), "");
+    }
+
+    #[test]
+    fn a_list_with_a_typo_is_refused() {
+        assert_eq!(IpNet::parse_list("").unwrap(), vec![]);
+        assert_eq!(IpNet::parse_list(" 192.0.2.10 ").unwrap()[0].to_string(), "192.0.2.10/32");
+        assert!(IpNet::parse_list("192.0.2.10,192.0.2").is_err());
+        assert!(IpNet::parse_list("10.0.0.0/33").is_err());
     }
 }
 

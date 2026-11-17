@@ -5,6 +5,10 @@ change merges; from 0.21.0 a release also numbers them, as the server's containe
 `ghcr.io/plim-fyi/plim:<version>`, and says what they gained since the last. Each release's binary:
 [the releases](https://github.com/plim-fyi/plim/releases) (from 0.20.0).
 
+## 0.22.2
+
+- **The connector believes its proxy where it really is:** `--trusted-proxies` (or `PLIM_CONNECTOR_TRUSTED_PROXIES`), addresses or CIDR ranges, names where `cloudflared`'s requests come from besides this machine, so their `CF-Connecting-IP` is the visitor's address. Before, only loopback was believed: a connector in rootless podman (or reached over a container network) counted every visitor as one address, for its limit on sign-ins under way and in its request log. An entry that isn't an address stops it. ([Deploying](docs/DEPLOY.md#the-connector))
+
 ## 0.22.1
 
 - **The connector (`plim mcp --http`) logs each request** on stderr, a line each: the method, the route, the status, the time it took, the caller's address, and, signed in, the connection (the first 8 of its id) and its MCP methods (`tools/call:read_note`). Never a token, a note's id or anything of a note; what a client sends can't break a line. Not `/healthz`. ([Known limitations](README.md#known-limitations))
